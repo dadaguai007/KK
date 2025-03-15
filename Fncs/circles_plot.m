@@ -11,9 +11,11 @@ ylabel(yname);
 title(titlename);
 box on;
 set(gca, 'FontName', 'Arial', 'FontSize', FontSize);
+set(gca, 'FontName', '宋体');
 % set(gcf,'Position', [0, 0, 480, 480]);
 set(gca, 'LineWidth', 1.25);
 set(gca, 'YLim',ylim);
+
 % 图示
     lgd = legend(legendArrary,'Location','best','Orientation', 'horizontal');
     set(lgd,'FontName','Arial','FontSize',FontSize);

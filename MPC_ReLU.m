@@ -1,4 +1,4 @@
-% 复现：Minimum phase conditions in kramers-kronig optical receivers
+% 复现：ReLU 效果 (无明显效果)
 clear;clc;close all;
 % addpath('D:\PhD\Codebase\')
 addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
@@ -23,8 +23,8 @@ w=2*pi*f;
 w_dither1=2*pi*f1;
 w_dither2=2*pi*f2;
 
-flag_mon={'ssb','dsb'};
-% flag_mon={'dsb'};
+
+flag_mon={'dsb'};
 WB = OCG_WaitBar(length(flag_mon));
 for index= 1:length(flag_mon)
 
@@ -78,18 +78,19 @@ for index= 1:length(flag_mon)
         paramPD.Fs=fs;
         % pd
         I_pd = pd(s, paramPD);
-        
-        % ReLU
-        % 期望信号
-%         xn=I_pd(1:2e6);
-%         dn=As*exp(-1j*w*t+1j*pi/2);
-%         sps=1;
-%         taps_list=[15,9,0,0,0,0];
-%         ref=8;
-%         step_len=0.0001;
-%         [y,e,w]=ReLU_dfe_lms(xn,dn,sps,ref,taps_list,step_len);
 
-        % KK
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        % ReLU算法         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        %         期望信号
+        xn=I_pd(1:1e6);
+        d=Ac+As*exp(-1j*w*t+1j*pi/2);
+        dn=pd(d,paramPD);
+        sps=1;
+        taps_list=[11,3,0,0,0,0];
+        ref=1;
+        step_len=0.0001;
+        [y,e,mu]=ReLU_dfe_lms(xn,dn,sps,ref,taps_list,step_len);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        % KK算法            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
         f_up=4*fs; % KK算法的采样率
         %     I_KK = KK(I_pd,fs,fs);
         [I_KK,ln_sig,H_sig] = KK_MPC(I_pd,fs,f_up);
@@ -99,44 +100,13 @@ for index= 1:length(flag_mon)
     end
 
     % 绘图效果
-    plot(real(s_recovery(1:4e5)),imag(s_recovery(1:4e5)),'bx',LineWidth=2);
+    plot(real(s_recovery(1:2e5)),imag(s_recovery(1:2e5)),'bx',LineWidth=2);
     circles_plot(Ac,As,'MPC','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
-    if strcmp(type,'ssb')
-        % 变量名
-        [IfdBm_Dith_ssb , ~ ]=mon_ESA_flag(ln_sig,f_up,0);
-        [ IfdBm_Dith_ssb_Ht, Fre ]=mon_ESA_flag(H_sig,f_up,0);
-    elseif strcmp(type,'dsb')
-        [IfdBm_Dith_dsb , ~ ]=mon_ESA_flag(ln_sig,f_up,0);
-        [ IfdBm_Dith_dsb_Ht, Fre ]=mon_ESA_flag(H_sig,f_up,0);
-    end
-   WB.updata(index);
+    WB.updata(index);
 end
 WB.closeWaitBar();
 
 
-figure;hold on;
-plot(Fre,IfdBm_Dith_ssb,'r');
-plot(Fre,IfdBm_Dith_dsb,'b--');
-xlabel('Frequency (GHz)');
-ylabel('Magnitude (dB)');
-title('ln_{signal}')
-box on;
-set(gca, 'FontName', 'Arial', 'FontSize', 14);
-set(gcf,'Position', [0, 0, 480, 400]);
-set(gca, 'LineWidth', 1.25);
-set(gca,'XLim',[-f_up/2/1e9 f_up/2/1e9],'YLim',[-50 30]);
-
-
-
-figure;hold on;
-plot(Fre,IfdBm_Dith_ssb_Ht,'r');
-plot(Fre,IfdBm_Dith_dsb_Ht,'b--');
-xlabel('Frequency (GHz)');
-ylabel('Magnitude (dB)');
-title('HT_{signal}')
-box on;
-set(gca, 'FontName', 'Arial', 'FontSize', 14);
-set(gcf,'Position', [0, 0, 480, 400]);
-set(gca, 'LineWidth', 1.25);
-set(gca,'XLim',[-f_up/2/1e9 f_up/2/1e9],'YLim',[-50 30]);
+mon_ESA(y,fs);
+mon_ESA(I_pd,fs);
