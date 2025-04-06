@@ -4,7 +4,7 @@ rxsig = ipd_btb(1:2*floor(length(ipd_btb)/2)).';
 
 % 实施KK
 c=0;
-fup=fs*2;
+fup=fs*6;
 [SSB_Sig_KK,ln_sig] = KK_MPC_Multi(rxsig+c,fs,fup);
 
 %下采样

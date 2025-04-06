@@ -1,6 +1,8 @@
+% dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-addpath('D:\PhD\Codebase\')
+% addpath('D:\PhD\Codebase\')
+addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath('OFDM_KK仿真系统\Fncs\')
 addpath('OFDM_KK仿真系统\')
 OFDM_TX;
@@ -119,7 +121,8 @@ for Index=1:size(V,1)
         sigTxo=real(signal)+VbI+1j*imag(signal)+1j*VbQ;
         signal_power=signalpower(sigTxo);
         fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
-
+        
+        % 传输信号
         sigTxo_DC=Ac+real(signal)+VbI+1j*imag(signal)+1j*VbQ;
 
         % Cal CSPR

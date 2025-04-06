@@ -1,11 +1,12 @@
-% 复现：ReLU 效果 (无明显效果)
+% 复现：DSB MPC 影响因素 探究
+
 clear;clc;close all;
 % addpath('D:\PhD\Codebase\')
 addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
-
 addpath('Fncs\')
+
 % 载波幅度
-Ac=5;
+Ac=4;
 % 信号幅度
 As=1;
 % 频率
@@ -32,7 +33,6 @@ for index= 1:length(flag_mon)
     type=char(flag_mon(index));
     % 信号幅的大小
     Ratio_power=0.1;
-    % Ratio_power=0:0.01:0.1;
     for i=1:length(Ratio_power)
         ratio_power=Ratio_power(i);
         if strcmp(type,'dsb')
@@ -52,6 +52,7 @@ for index= 1:length(flag_mon)
             s=s.';
             signal=As*exp(-1j*w*t)+dither1+dither2;
         end
+        % 无扰动信号
         SS=Ac+As*exp(-1j*w*t+1j*pi/2);
         signal_power=signalpower(signal);
 
@@ -75,39 +76,61 @@ for index= 1:length(flag_mon)
         I_pd = pd(s, paramPD);
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        %  无扰动信号/ 试验扰动影响       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % 无扰动项
         I_pd_Tone = pd(SS.', paramPD);
         % 平方
         S_dither=dither1+1j*dither2;
         I_pd_dither = pd(S_dither.', paramPD);
+
+        % 平方项
         I_pd_Total=I_pd_Tone+I_pd_dither;  %加上平方项
+
         % 信号交调项
+
         S=As*exp(-1j*w*t+1j*pi/2).*dither1+conj(As*exp(-1j*w*t+1j*pi/2)).*dither1;
+
+        S1=real(As*exp(-1j*w*t+1j*pi/2).*conj(1j*dither2)+conj(As*exp(-1j*w*t+1j*pi/2)).*(1j*dither2));
+        % 平方项+拍频
         I_pd_Total1=I_pd_Total+S.';
-        S1=real(As*exp(-1j*w*t+1j*pi/2).*conj(1j*dither2)+conj(As*exp(-1j*w*t+1j*pi/2)).*dither2);
+
+        % 平方项+ 两个拍频项
         I_pd_Total2=I_pd_Total1+S1.';
+
         % dither的扩大
         S2=S_dither*Ac+Ac*conj(S_dither);
+
         % dither扩大项 + 两个拍频项
         I_pd_Total3=I_pd_Tone+S2.'+S.'+S1.';
+
         % dither扩大项 + 一个拍频项
         I_pd_Total4=I_pd_Tone+S2.'+S.';
         % dither扩大项
         I_pd_Total5=I_pd_Tone+S2.';
         % 拍频项
         I_pd_Total6=I_pd_Tone+S1.'+S.';
+        % 平方项
+        I_pd_Total7=I_pd_Total+S2.';
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        % KK算法            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
         f_up=4*fs; % KK算法的采样率
-        %     I_KK = KK(I_pd,fs,fs);
+        
         [I_KK,~,~] = KK_MPC(I_pd_Total3,fs,f_up);
         [I_KK1,~,~] = KK_MPC(I_pd_Total4,fs,f_up);
         [I_KK2,~,~] = KK_MPC(I_pd_Total5,fs,f_up);
         [I_KK3,~,~] = KK_MPC(I_pd_Total6,fs,f_up);
+        [I_KK4,~,~] = KK_MPC(I_pd_Total,fs,f_up);
+        [I_KK5,~,~] = KK_MPC(I_pd_Total2,fs,f_up);
+        [I_KK6,~,~] = KK_MPC(I_pd_Total7,fs,f_up);
+        [I_KK_Total,~,~] = KK_MPC(I_pd,fs,f_up);
+        
         %下采样
         s_recovery=downsample(I_KK,f_up/fs);
         s_recovery1=downsample(I_KK1,f_up/fs);
         s_recovery2=downsample(I_KK2,f_up/fs);
         s_recovery3=downsample(I_KK3,f_up/fs);
-
+        s_recovery4=downsample(I_KK4,f_up/fs);
+        s_recovery5=downsample(I_KK5,f_up/fs);
+        s_recovery6=downsample(I_KK6,f_up/fs);
+        s_recovery_total=downsample(I_KK_Total,f_up/fs);
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      绘图效果            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -132,6 +155,27 @@ for index= 1:length(flag_mon)
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery3(1:2e5)),imag(s_recovery3(1:2e5)),'bx',LineWidth=2);
     circles_plot(Ac,As,'两个拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+
+     figure;hold on;
+    plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
+    plot(real(s_recovery4(1:2e5)),imag(s_recovery4(1:2e5)),'bx',LineWidth=2);
+    circles_plot(Ac,As,'平方项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    
+    figure;hold on;
+    plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
+    plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
+    circles_plot(Ac,As,'平方项+两拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+
+    figure;hold on;
+    plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
+    plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
+    circles_plot(Ac,As,'平方项+增强项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+
+
+    figure;hold on;
+    plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
+    plot(real(s_recovery_total(1:2e5)),imag(s_recovery_total(1:2e5)),'bx',LineWidth=2);
+    circles_plot(Ac,As,'所有扰动项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     WB.updata(index);
 end

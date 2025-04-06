@@ -1,9 +1,11 @@
 % 复现：Minimum phase conditions in kramers-kronig optical receivers
+% SSB 和 DSB dither 的 作用效果图
+
 clear;clc;close all;
 % addpath('D:\PhD\Codebase\')
 addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
-
 addpath('Fncs\')
+
 % 载波幅度
 Ac=5;
 % 信号幅度
@@ -24,7 +26,6 @@ w_dither1=2*pi*f1;
 w_dither2=2*pi*f2;
 
 flag_mon={'ssb','dsb'};
-% flag_mon={'dsb'};
 WB = OCG_WaitBar(length(flag_mon));
 for index= 1:length(flag_mon)
 

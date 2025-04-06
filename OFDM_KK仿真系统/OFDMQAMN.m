@@ -28,6 +28,8 @@ classdef OFDMQAMN < handle
         nOffsetSub;
 
         Type
+        len
+        dataCarrierIndex
     end
 
     properties (Dependent = true)
