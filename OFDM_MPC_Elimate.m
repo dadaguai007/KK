@@ -34,7 +34,7 @@ Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
 %方案选择
-type='ssb';
+type='dsb';
 
 
 if strcmp(type,'dsb')
@@ -119,7 +119,7 @@ if 1
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
     % 去除干扰项
-    ipd_btb=ipd_btb-S-S1-S2;
+    %     ipd_btb=ipd_btb-S-S1-S2;
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -138,7 +138,7 @@ if 1
 
     % 信号预处理
     [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-   
+    %     [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(ReceivedSignal);
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -146,7 +146,6 @@ if 1
 end
 
 mon_ESA(ReceivedSignal,fs);
-
 
 
 WB = OCG_WaitBar(k);
@@ -176,3 +175,18 @@ for i=1:k
     WB.updata(i);
 end
 WB.closeWaitBar();% 分段解码
+
+% 选取性能较好段，进行重新调制
+[ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
+Re_Signal=Ac+label;
+% 信号复制
+signal_Re=repmat(Re_Signal,k,1);
+% 残留噪声
+Re=ReceivedSignal-signal_Re.';
+% 更正解码参数
+Receiver.Total_Preprocessed_signal(ipd_btb);
+% 解码
+[ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal-Re);
+
+% 噪声功率谱
+mon_ESA(Re,fs);

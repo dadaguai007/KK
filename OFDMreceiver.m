@@ -164,6 +164,8 @@ classdef OFDMreceiver < handle
 %             data_ofdm = data_ofdm./sqrt(mean(abs(data_ofdm(:)).^2));
             % 硬判决 为 最近的星座点
             data_qam=hard_decision_qam(obj.ofdmPHY.M,data_ofdm);
+            %  加权非线性判决
+%             data_qam=Weighted_Decision(data_ofdm.');
             % 硬判决 为bit
             qam_bit=obj.hard_decision(data_ofdm);
 
