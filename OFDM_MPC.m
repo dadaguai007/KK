@@ -34,7 +34,7 @@ Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
 %方案选择
-type='ssb';
+type='dsb';
 
 
 if strcmp(type,'dsb')

@@ -51,15 +51,15 @@ end
 
 %IQ
 %信号幅度
-As=1;
+As=9;
 % Dither 的幅度设置
-alfa1=0.2;
+alfa1=0.02;
 alfa2=alfa1;
 V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-
+% vpp=num2str(alfa1);% 百分之Vpi
 
 
 %IQ
@@ -79,28 +79,57 @@ if 1
         VbQ=Vdither(1)*Vdither2+Vdither(2)*Vdither_2;
     end
 
-    % 载波幅度
-    Ac=1;
-    % 加载信号
-    sigTxo=real(signal)+VbI+1j*imag(signal)+1j*VbQ;
+
+    % IQ调制
+
+    % 输入光信号
+    Pi_dBm = 10;
+    Pi = 10^(Pi_dBm/10)*1e-3; %W
+
+    phi=0.87; % Vbias 偏移程度
+    paramIQ.Vpi=9;
+    if strcmp(type,'dsb')
+        paramIQ.VbI=-phi*paramIQ.Vpi+VbI;
+        paramIQ.VbQ=-phi*paramIQ.Vpi+VbQ;
+    elseif strcmp(type,'ssb')
+        paramIQ.VbI=-phi*paramIQ.Vpi+VbI;
+        paramIQ.VbQ=-phi*paramIQ.Vpi+VbQ;
+    end
+    paramIQ.Vphi=paramIQ.Vpi/2;
+    Amp=1.7; % 信号放大
+    Ai  = sqrt(Pi);% 输入光功率
+    m=Modulation_index(Amp*signal.',paramIQ.Vpi,'ofdm');
+    fprintf('Modulation index=%3.3f\n',m);
+    % 调制
+    sigTxo = iqm(Ai, Amp*signal, paramIQ);
+
     signal_power=signalpower(sigTxo);
     fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
-
-    % 传输信号
-    sigTxo_DC=Ac+real(signal)+VbI+1j*imag(signal)+1j*VbQ;
     % dither
     Dither=VbI+1j*VbQ;
     % Cal CSPR
-    Carry_power=Ac.^2;
-    CSPR = Carry_power/signal_power;
-    CSPR=10*log10(CSPR);
-    CSPR=round(CSPR,2);
-    text='CSPR=';
-    leg_text=strcat(text,num2str(CSPR),'dB');
-    fprintf("the CSPR is %1.2fdB\n",CSPR);
+    Vpi=9;
+    Cal_CSPR(sigTxo,Ai,Vpi,phi);
 
-    %接收
-    sigRxo=sigTxo_DC;
+    % 光纤传输
+    % fiber param
+    param=struct();
+    param.Ltotal = 80; %km
+    param.Lspan =10;
+    param.hz= 0.5;
+    param.alpha=0.2;
+    param.D = 16;
+    param.gamma = 1.3;
+    param.Fc = 193.1e12;
+    param.NF = 4.5;
+    param.amp='ideal';
+    param.Fs=fs;
+
+    % OFDM_tran
+    sigRxo=ssfm(sigTxo,param);
+    power2=signalpower(sigRxo);
+    fprintf('after ssfm signal power: %.2f dBm\n', 10 * log10(power2 / 1e-3));
+
 
     %PD
     paramPD.B =nn.Fs;
@@ -109,16 +138,7 @@ if 1
     paramPD.Fs=nn.Fs;
     %pd
     ipd_btb = pd(sigRxo, paramPD);
-    % dither 平方项
-    ipd_pingfang = pd(Dither, paramPD);
-    % dither的扩大
-    S2=Dither*Ac+Ac*conj(Dither);
-    % 拍频项 1
-    S=As*signal.*VbI+conj(As*signal).*VbI;
-    % 拍频项 2
-    S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
-    % 去除干扰项
-    %     ipd_btb=ipd_btb-S-S1-S2;
+
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -137,7 +157,8 @@ if 1
 
     % 信号预处理
     [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-    %     [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(ReceivedSignal);
+    % 归一化
+    ReceivedSignal=pnorm(ReceivedSignal);
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -147,17 +168,18 @@ end
 mon_ESA(ReceivedSignal,fs);
 
 
+
 WB = OCG_WaitBar(k);
 % 发射机参数
 ofdmPHY=nn;
-for i=10
+for i=13
 
     %%---------------------------------------        解码       ---------------------------%%
     Receiver=OFDMreceiver( ...
         ofdmPHY, ...       %%% 发射机传输的参数
         ofdmPHY.Fs, ...    %   采样
         6*ofdmPHY.Fs, ...  % 上采样
-        10, ...            % 信道训练长度
+        50, ...            % 信道训练长度
         1:1:ofdmPHY.nModCarriers, ...    %导频位置
         i, ...             % 选取第一段信号
         ref_seq, ...       % 参考序列
@@ -175,9 +197,11 @@ for i=10
 end
 WB.closeWaitBar();% 分段解码
 
+
 % 选取性能较好段，进行重新调制
 [ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
-Re_Signal=Ac+ofdm_signal;
+% 补上直流
+Re_Signal=mean(ReceivedSignal)+ofdm_signal;
 % 信号复制
 signal_Re=repmat(Re_Signal,k,1);
 % 残留噪声
@@ -188,4 +212,9 @@ Receiver.Total_Preprocessed_signal(ipd_btb);
 [ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal-Re);
 
 % 噪声功率谱
+figure;
 mon_ESA(Re,fs);
+
+figure;
+plot(real(ReceivedSignal-Re))
+title('恢复后的信号')
