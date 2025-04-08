@@ -2,12 +2,12 @@
 % SSB 和 DSB dither 的 作用效果图
 
 clear;clc;close all;
-% addpath('D:\PhD\Codebase\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Codebase\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath('Fncs\')
 
 % 载波幅度
-Ac=5;
+Ac=4;
 % 信号幅度
 As=1;
 % 频率

@@ -1,8 +1,8 @@
 % 复现：DSB MPC 影响因素 探究
 
 clear;clc;close all;
-% addpath('D:\PhD\Codebase\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Codebase\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath('Fncs\')
 
 % 载波幅度
@@ -138,38 +138,38 @@ for index= 1:length(flag_mon)
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery(1:2e5)),imag(s_recovery(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'增强扰动项+两拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
-
+    circles_plot(Ac,As,'载波-扰动拍频+两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery1(1:2e5)),imag(s_recovery1(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'增强扰动项+一个拍频（实）','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'载波-扰动拍频+一个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery2(1:2e5)),imag(s_recovery2(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'增强扰动项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'载波-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery3(1:2e5)),imag(s_recovery3(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'两个拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
      figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery4(1:2e5)),imag(s_recovery4(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'平方项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
     
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'平方项+两拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方+两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'平方项+增强项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方+载波-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
 
 
     figure;hold on;

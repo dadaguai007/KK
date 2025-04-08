@@ -79,7 +79,7 @@ if 1
     end
 
     % 载波幅度
-    Ac=1.15;
+    Ac=1;
     % 加载信号
     sigTxo=real(signal)+VbI+1j*imag(signal)+1j*VbQ;
     signal_power=signalpower(sigTxo);
@@ -117,7 +117,7 @@ if 1
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
     % 去除干扰项
-%     ipd_btb=ipd_btb-S-S1-S2;
+    %     ipd_btb=ipd_btb-S-S1-S2;
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -132,51 +132,32 @@ if 1
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
+        'KK');
 
-    % 信号预处理
-    [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-   
-    % BER 计算
-    [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
+    % 初始化设置
+    Eb_N0_dB=10:30;
+    ber_total=zeros(length(Eb_N0_dB),1);
+    num_total=zeros(length(Eb_N0_dB),1);
+    WB = OCG_WaitBar(length(Eb_N0_dB));
+    for index=1:length(Eb_N0_dB)
+        % 噪声
+        noise=EbN0_dB(ipd_btb,Eb_N0_dB(index));
+        % 加入噪声
+        pd_receiver=ipd_btb+noise;
+        % 信号预处理
+        [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
 
+        % BER 计算
+        [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
+        WB.updata(index);
+    end
+    WB.closeWaitBar();% 分段解码
 end
 
-mon_ESA(ReceivedSignal,fs);
-
-
-
-WB = OCG_WaitBar(k);
-% 发射机参数
-ofdmPHY=nn;
-for i=1:k
-
-    %%---------------------------------------        解码       ---------------------------%%
-    Receiver=OFDMreceiver( ...
-        ofdmPHY, ...       %%% 发射机传输的参数
-        ofdmPHY.Fs, ...    %   采样
-        6*ofdmPHY.Fs, ...  % 上采样
-        10, ...            % 信道训练长度
-        1:1:ofdmPHY.nModCarriers, ...    %导频位置
-        i, ...             % 选取第一段信号
-        ref_seq, ...       % 参考序列
-        qam_signal, ...    % qam 矩阵
-        'off', ...         % 是否采用CPE
-        'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
-
-    % 信号预处理
-    [receive,Dc]=Receiver.Preprocessed_signal(ipd_btb);
-    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
-    % BER 计算
-    [ber,num]=Receiver.Cal_BER(receive);
-    WB.updata(i);
-end
-WB.closeWaitBar();% 分段解码
-
-% 创建时间轴
-[~,t_up]=freq_time_set(length(signal_ofdm),fs);
-figure;
-plot(t_up,ipd_btb)
-Plotter(titlename,'Time','Ampt',xlim,ylim,legendArrary,flag,FontSize);
+berplot = BERPlot_David();
+% 间隔
+berplot.interval=2;
+% 字号
+berplot.Config.FontSize = 14;
+berplot.plot(Eb_N0_dB,ber_total);
