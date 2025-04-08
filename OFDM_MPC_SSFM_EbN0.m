@@ -153,7 +153,7 @@ if 1
         'KK');             % 接收方式
 
     % 初始化设置
-    Eb_N0_dB=10;
+    Eb_N0_dB=10:30;
     ber_total=zeros(length(Eb_N0_dB),1);
     num_total=zeros(length(Eb_N0_dB),1);
     WB = OCG_WaitBar(length(Eb_N0_dB));

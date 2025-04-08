@@ -58,11 +58,6 @@ V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-% vpp=num2str(alfa1);% 百分之Vpi
-
-
-%IQ
-N=length(label);
 
 % 转置
 signal=signal.';
