@@ -9,9 +9,13 @@ title(titlename);
 grid on;
  set(gca, 'GridLineStyle', '--'); % 设置网格线为虚线
 box on;
+
+
+width = 480;
+height = width * 0.7; % 假设高度与宽度比例为 0.7
 % axis square;
 set(gca, 'FontName', 'Arial', 'FontSize', FontSize);
-set(gcf,'Position', [0, 0, 500, 330]);
+set(gcf,'Position', [200, 200, width, height]);
 set(gca, 'LineWidth', 1.25);
 set(gca, 'XLim',xlim,'YLim',ylim);
 % ylim tight;

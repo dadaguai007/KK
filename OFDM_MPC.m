@@ -117,7 +117,7 @@ if 1
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
     % 去除干扰项
-%     ipd_btb=ipd_btb-S-S1-S2;
+    ipd_btb=ipd_btb-S-S1-S2;
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -136,7 +136,7 @@ if 1
 
     % 信号预处理
     [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-   
+    ReceivedSignal=pnorm(ReceivedSignal);
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -176,7 +176,19 @@ end
 WB.closeWaitBar();% 分段解码
 
 % 创建时间轴
-[~,t_up]=freq_time_set(length(signal_ofdm),fs);
+[~,t_up]=freq_time_set(length(signal),fs);
+% 接收信号
 figure;
 plot(t_up,ipd_btb)
-Plotter(titlename,'Time','Ampt',xlim,ylim,legendArrary,flag,FontSize);
+FontSize=14;
+flag=struct();
+flag.LegendON_OFF=0;
+Plotter('Remove signal-dither and carrier-dither beat','Time','Amplitude',[0 3.5e-5],[-1 6],'',flag,FontSize);
+
+% 恢复信号
+figure;
+plot(t_up,real(ReceivedSignal))
+FontSize=14;
+flag=struct();
+flag.LegendON_OFF=0;
+Plotter('After KK relation','Time','Amplitude',[0 3.5e-5],[-1 3],'',flag,FontSize);

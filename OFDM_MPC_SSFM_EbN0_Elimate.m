@@ -33,7 +33,7 @@ Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
 %方案选择
-type='dsb';
+type='ssb';
 
 
 if strcmp(type,'dsb')
@@ -58,8 +58,6 @@ alfa2=alfa1;
 V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
-
-% vpp=num2str(alfa1);% 百分之Vpi
 
 
 %IQ
@@ -154,80 +152,78 @@ if 1
         'off', ...         % 对所有载波进行相位补偿
         'KK');             % 接收方式
 
-    % 信号预处理
-    [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(ipd_btb);
-    % 归一化
-    ReceivedSignal=pnorm(ReceivedSignal);
-    Dc=mean(ReceivedSignal);
-    % BER 计算
-    [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
+    % 初始化设置
+    Eb_N0_dB=10:30;
+    ber_total=zeros(length(Eb_N0_dB),1);
+    num_total=zeros(length(Eb_N0_dB),1);
+    WB = OCG_WaitBar(length(Eb_N0_dB));
+    for index=1:length(Eb_N0_dB)
+        % 噪声
+        noise=EbN0_dB(sigRxo,Eb_N0_dB(index));
+        % 加入噪声
+        pd_receiver = pnorm(ipd_btb)+(noise);
+        % 信号预处理
+        [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(pd_receiver);
+        % 测试两个DC的取值
+        Dc=mean(ReceivedSignal);
+        % BER 计算
+        [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
+
+        % 选取某段进行解码(可进行优化)
+        %%---------------------------------------        解码       ---------------------------%%
+        Receiver=OFDMreceiver( ...
+            ofdmPHY, ...       %%% 发射机传输的参数
+            ofdmPHY.Fs, ...    %   采样
+            6*ofdmPHY.Fs, ...  % 上采样
+            ofdmPHY.nPkts, ...            % 信道训练长度
+            1:1:ofdmPHY.nModCarriers, ...    %导频位置
+            10, ...             % 选取一段信号
+            ref_seq, ...       % 参考序列
+            qam_signal, ...    % qam 矩阵
+            'off', ...         % 是否采用CPE
+            'off', ...         % 对所有载波进行相位补偿
+            'KK');             % 接收方式
+
+        % 信号预处理
+        [receive,~]=Receiver.Preprocessed_signal(pd_receiver);
+        [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
+
+        % BER 计算
+        [ber,num]=Receiver.Cal_BER(receive);
+
+        % 选取性能较好段，进行重新调制
+        [ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
+        % 补上直流
+        Re_Signal=Dc+ofdm_signal;
+        % 信号复制
+        signal_Re=repmat(Re_Signal,k,1);
+        % 残留噪声
+        Re=ReceivedSignal-signal_Re.';
+        % 更正解码参数
+        Receiver.Total_Preprocessed_signal(ipd_btb);
+        % 解码(接收信号减去残留噪声)
+        [ber_total1(index),num_total1(index)]=Receiver.Cal_BER(ReceivedSignal-Re);
+ 
+        WB.updata(index);
+    end
+    WB.closeWaitBar();% 分段解码
 
 
 end
+Y=ReceivedSignal-Re;
+X=Y(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
 
 
 
-WB = OCG_WaitBar(k);
-% 发射机参数
-ofdmPHY=nn;
-for i=2
 
-    %%---------------------------------------        解码       ---------------------------%%
-    Receiver=OFDMreceiver( ...
-        ofdmPHY, ...       %%% 发射机传输的参数
-        ofdmPHY.Fs, ...    %   采样
-        6*ofdmPHY.Fs, ...  % 上采样
-        ofdmPHY.nPkts, ...            % 信道训练长度
-        1:1:ofdmPHY.nModCarriers, ...    %导频位置
-        i, ...             % 选取第一段信号
-        ref_seq, ...       % 参考序列
-        qam_signal, ...    % qam 矩阵
-        'off', ...         % 是否采用CPE
-        'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
-
-    % 信号预处理
-    [receive,Dc]=Receiver.Preprocessed_signal(ipd_btb);
-    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
-    % BER 计算
-    [ber,num]=Receiver.Cal_BER(receive);
-    WB.updata(i);
-end
-WB.closeWaitBar();% 分段解码
-
-
-% 选取性能较好段，进行重新调制
-[ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
-% 补上直流
-Re_Signal=Dc+ofdm_signal;
-% 信号复制
-signal_Re=repmat(Re_Signal,k,1);
-% 残留噪声
-Re=ReceivedSignal-signal_Re.';
-% 更正解码参数
-Receiver.Total_Preprocessed_signal(ipd_btb);
-% 解码(接收信号减去残留噪声)
-[ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal-Re);
-
-% 噪声功率谱
-
-[ IfdBm, Fre ]=mon_ESA_flag(Re,fs,0);
-figure;
-plot(Fre,IfdBm,'b');
-FontSize=14;
-flag=struct();
-flag.LegendON_OFF=0;
-xticks([-32,-20,-10,0,10,20,32]);
-Plotter('Residual noise spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 fs/2/1e9],...
-    [-150 50],'',flag,FontSize);
-
-% 创建时间轴
-[~,t_up]=freq_time_set(length(signal),fs);
-
-figure;
-plot(t_up,real(ReceivedSignal-Re),'b')
-flag=struct();
-flag.LegendON_OFF=0;
-xticks([0,1e-5,2e-5,3e-5,3.5e-5]);
-Plotter('Recovered signal','Time','Amplitude',[0 3.5e-5],[-1.5 1.5],...
-    '',flag,FontSize);
+berplot = BERPlot_David();
+% 间隔
+berplot.interval=2;
+% 字号
+berplot.Config.FontSize = 14;
+berplot.flagThreshold=1;
+berplot.flagRedraw=0;
+berplot.flagAddLegend=1;
+BER=[ber_total.';ber_total1];
+LengendArrary=["80km w/o ","80km w SIC"];
+berplot.multiplot(Eb_N0_dB,BER,LengendArrary);

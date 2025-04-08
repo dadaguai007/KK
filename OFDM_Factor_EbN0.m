@@ -79,7 +79,7 @@ if 1
     end
 
     % 载波幅度
-    Ac=1.12;
+    Ac=1.15;
     % 加载信号
     sigTxo=real(signal)+VbI+1j*imag(signal)+1j*VbQ;
     signal_power=signalpower(sigTxo);
@@ -116,8 +116,15 @@ if 1
     S=As*signal.*VbI+conj(As*signal).*VbI;
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
-    % 去除干扰项
-    %     ipd_btb=ipd_btb-S-S1-S2;
+
+    % 存储各种接收信号
+    DataGroup = cell(1, 5);
+    DataGroup{1} = ipd_btb;
+    DataGroup{2} = ipd_btb-ipd_pingfang;
+    DataGroup{3} = ipd_btb-S2;
+    DataGroup{4} = ipd_btb-S-S1;
+    DataGroup{5} = ipd_btb-S-S1-S2;
+
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -136,23 +143,32 @@ if 1
 
     % 初始化设置
     Eb_N0_dB=10:30;
-    ber_total=zeros(length(Eb_N0_dB),1);
-    num_total=zeros(length(Eb_N0_dB),1);
-    WB = OCG_WaitBar(length(Eb_N0_dB));
-    for index=1:length(Eb_N0_dB)
-        % 噪声
-        noise=EbN0_dB(ipd_btb,Eb_N0_dB(index));
-        % 加入噪声
-        pd_receiver=ipd_btb+noise;
-        % 信号预处理
-        [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
+    % 误码率数组
+    BERGroup=cell(1,5);
+    for i=1:length(DataGroup)
+        % 取信号
+        data=DataGroup{i};
 
-        % BER 计算
-        [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
+        ber_total=zeros(length(Eb_N0_dB),1);
+        num_total=zeros(length(Eb_N0_dB),1);
+        WB = OCG_WaitBar(length(Eb_N0_dB));
+        for index=1:length(Eb_N0_dB)
+            % 噪声
+            noise=EbN0_dB(data,Eb_N0_dB(index));
+            % 加入噪声
+            pd_receiver=data+noise;
+            % 信号预处理
+            [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
 
-        WB.updata(index);
+            % BER 计算
+            [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
+
+            WB.updata(index);
+        end
+        WB.closeWaitBar();
+        % 存储
+        BERGroup{i}=ber_total;
     end
-    WB.closeWaitBar();% 分段解码
 end
 
 berplot = BERPlot_David();
@@ -160,4 +176,10 @@ berplot = BERPlot_David();
 berplot.interval=2;
 % 字号
 berplot.Config.FontSize = 14;
-berplot.plot(Eb_N0_dB,ber_total);
+berplot.flagThreshold=1;
+berplot.flagRedraw=0;
+berplot.flagAddLegend=1;
+BER=[BERGroup{1}.';BERGroup{2}.';BERGroup{3}.';BERGroup{4}.';BERGroup{5}.'];
+LengendArrary=["BTB ","Remove square of dither",'Remove carrier-dither',...
+    'Remove signal-dither','Remove signal-dither and carrier-dither'];
+berplot.multiplot(Eb_N0_dB,BER,LengendArrary);

@@ -3,6 +3,7 @@ clear;close all;clc;
 addpath('Fncs\')
 addpath('D:\PhD\Project\Base_Code\Base\')
 % addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -50,15 +51,13 @@ end
 
 %IQ
 %信号幅度
-As=1;
+As=9;
 % Dither 的幅度设置
-alfa1=0.2;
+alfa1=0.02;
 alfa2=alfa1;
 V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
-
-% vpp=num2str(alfa1);% 百分之Vpi
 
 
 %IQ
@@ -78,28 +77,56 @@ if 1
         VbQ=Vdither(1)*Vdither2+Vdither(2)*Vdither_2;
     end
 
-    % 载波幅度
-    Ac=1.12;
-    % 加载信号
-    sigTxo=real(signal)+VbI+1j*imag(signal)+1j*VbQ;
+
+    % IQ调制
+
+    % 输入光信号
+    Pi_dBm = 10;
+    Pi = 10^(Pi_dBm/10)*1e-3; %W
+
+    phi=0.87; % Vbias 偏移程度
+    paramIQ.Vpi=9;
+    if strcmp(type,'dsb')
+        paramIQ.VbI=-phi*paramIQ.Vpi+VbI;
+        paramIQ.VbQ=-phi*paramIQ.Vpi+VbQ;
+    elseif strcmp(type,'ssb')
+        paramIQ.VbI=-phi*paramIQ.Vpi+VbI;
+        paramIQ.VbQ=-phi*paramIQ.Vpi+VbQ;
+    end
+    paramIQ.Vphi=paramIQ.Vpi/2;
+    Amp=1.7; % 信号放大
+    Ai  = sqrt(Pi);% 输入光功率
+    m=Modulation_index(Amp*signal.',paramIQ.Vpi,'ofdm');
+    fprintf('Modulation index=%3.3f\n',m);
+    % 调制
+    sigTxo = iqm(Ai, Amp*signal, paramIQ);
+
     signal_power=signalpower(sigTxo);
     fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
 
-    % 传输信号
-    sigTxo_DC=Ac+real(signal)+VbI+1j*imag(signal)+1j*VbQ;
-    % dither
-    Dither=VbI+1j*VbQ;
     % Cal CSPR
-    Carry_power=Ac.^2;
-    CSPR = Carry_power/signal_power;
-    CSPR=10*log10(CSPR);
-    CSPR=round(CSPR,2);
-    text='CSPR=';
-    leg_text=strcat(text,num2str(CSPR),'dB');
-    fprintf("the CSPR is %1.2fdB\n",CSPR);
+    Vpi=9;
+    Cal_CSPR(sigTxo,Ai,Vpi,phi);
 
-    %接收
-    sigRxo=sigTxo_DC;
+    % 光纤传输
+    % fiber param
+    param=struct();
+    param.Ltotal = 80; %km
+    param.Lspan =10;
+    param.hz= 0.5;
+    param.alpha=0.2;
+    param.D = 16;
+    param.gamma = 1.3;
+    param.Fc = 193.1e12;
+    param.NF = 4.5;
+    param.amp='ideal';
+    param.Fs=fs;
+
+    % OFDM_tran
+    sigRxo=ssfm(sigTxo,param);
+    power2=signalpower(sigRxo);
+    fprintf('after ssfm signal power: %.2f dBm\n', 10 * log10(power2 / 1e-3));
+
 
     %PD
     paramPD.B =nn.Fs;
@@ -108,16 +135,7 @@ if 1
     paramPD.Fs=nn.Fs;
     %pd
     ipd_btb = pd(sigRxo, paramPD);
-    % dither 平方项
-    ipd_pingfang = pd(Dither, paramPD);
-    % dither的扩大
-    S2=Dither*Ac+Ac*conj(Dither);
-    % 拍频项 1
-    S=As*signal.*VbI+conj(As*signal).*VbI;
-    % 拍频项 2
-    S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
-    % 去除干扰项
-    %     ipd_btb=ipd_btb-S-S1-S2;
+
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -132,28 +150,65 @@ if 1
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');
+        'KK');             % 接收方式
 
     % 初始化设置
-    Eb_N0_dB=10:30;
+    Eb_N0_dB=10;
     ber_total=zeros(length(Eb_N0_dB),1);
     num_total=zeros(length(Eb_N0_dB),1);
     WB = OCG_WaitBar(length(Eb_N0_dB));
     for index=1:length(Eb_N0_dB)
         % 噪声
-        noise=EbN0_dB(ipd_btb,Eb_N0_dB(index));
+        noise=EbN0_dB(sigRxo,Eb_N0_dB(index));
+        
         % 加入噪声
-        pd_receiver=ipd_btb+noise;
-        % 信号预处理
-        [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
+        pd_receiver = pnorm(ipd_btb)+noise;
 
+        % 信号预处理
+        [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(pd_receiver);
         % BER 计算
         [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
         WB.updata(index);
     end
-    WB.closeWaitBar();% 分段解码
+    WB.closeWaitBar();
+
+
 end
+
+WB = OCG_WaitBar(k);
+
+% 发射机参数
+ofdmPHY=nn;
+for i=1:k
+
+    %%---------------------------------------        解码       ---------------------------%%
+    Receiver=OFDMreceiver( ...
+        ofdmPHY, ...       %%% 发射机传输的参数
+        ofdmPHY.Fs, ...    %   采样
+        6*ofdmPHY.Fs, ...  % 上采样
+        ofdmPHY.nPkts, ...            % 信道训练长度
+        1:1:ofdmPHY.nModCarriers, ...    %导频位置
+        i, ...             % 选取第一段信号
+        ref_seq, ...       % 参考序列
+        qam_signal, ...    % qam 矩阵
+        'off', ...         % 是否采用CPE
+        'off', ...         % 对所有载波进行相位补偿
+        'KK');             % 接收方式
+
+    % 信号预处理
+    [receive,Dc]=Receiver.Preprocessed_signal(pd_receiver);
+    receive=pnorm(receive);
+    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
+    % BER 计算
+    [ber,num]=Receiver.Cal_BER(receive);
+    WB.updata(i);
+end
+WB.closeWaitBar();% 分段解码
+
+
+
+
 
 berplot = BERPlot_David();
 % 间隔
