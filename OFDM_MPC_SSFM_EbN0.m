@@ -1,8 +1,8 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-addpath('D:\PhD\Project\Base_Code\Base\')
-% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+% addpath('D:\PhD\Project\Base_Code\Base\')
+addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 
 OFDM_TX;
 % 生成信号
