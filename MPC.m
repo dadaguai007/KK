@@ -25,7 +25,8 @@ w=2*pi*f;
 w_dither1=2*pi*f1;
 w_dither2=2*pi*f2;
 
-flag_mon={'ssb','dsb'};
+% flag_mon={'ssb','dsb'};
+flag_mon={'dsb'};
 WB = OCG_WaitBar(length(flag_mon));
 for index= 1:length(flag_mon)
 
