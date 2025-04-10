@@ -11,7 +11,7 @@ grid on;
 box on;
 
 
-width = 480;
+width = 580;
 height = width * 0.7; % 假设高度与宽度比例为 0.7
 % axis square;
 set(gca, 'FontName', 'Arial', 'FontSize', FontSize);

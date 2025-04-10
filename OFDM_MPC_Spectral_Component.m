@@ -1,8 +1,8 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-addpath('D:\PhD\Project\Base_Code\Base\')
-% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+% addpath('D:\PhD\Project\Base_Code\Base\')
+addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -31,21 +31,7 @@ f2=60e3;
 Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
-%方案选择
-type='dsb';
 
-
-if strcmp(type,'dsb')
-    Vdither1 = Creat_dither(Fs_new,f1,N);
-    Vdither2 = Creat_dither(Fs_new,f2,N*(f2/f1));
-elseif strcmp(type,'ssb')
-    % f1 and f2 的cos信号
-    Vdither1 = Creat_dither(Fs_new,f1,N);
-    Vdither_1=Creat_dither(Fs_new,f2,N*(f2/f1));
-    % f1 and f2 的sin信号
-    Vdither_2 = Creat_dither1(Fs_new,f2,N*(f2/f1));
-    Vdither2=Creat_dither1(Fs_new,f1,N);
-end
 
 
 %IQ
@@ -58,17 +44,25 @@ V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-% vpp=num2str(alfa1);% 百分之Vpi
-
-
-%IQ
-N=length(label);
-
 % 转置
 signal=signal.';
 
-%  全部解码
-if 1
+flag_mon={'dsb','ssb'};
+for index= 1:length(flag_mon)
+    % dither 信号 选择不同的dither方案
+    type=char(flag_mon(index));
+    % 方案选择
+    if strcmp(type,'dsb')
+        Vdither1 = Creat_dither(Fs_new,f1,N);
+        Vdither2 = Creat_dither(Fs_new,f2,N*(f2/f1));
+    elseif strcmp(type,'ssb')
+        % f1 and f2 的cos信号
+        Vdither1 = Creat_dither(Fs_new,f1,N);
+        Vdither_1=Creat_dither(Fs_new,f2,N*(f2/f1));
+        % f1 and f2 的sin信号
+        Vdither_2 = Creat_dither1(Fs_new,f2,N*(f2/f1));
+        Vdither2=Creat_dither1(Fs_new,f1,N);
+    end
     Vdither=V;
     if strcmp(type,'dsb')
         VbI=Vdither(1)*Vdither1;
@@ -100,7 +94,7 @@ if 1
 
     %接收
     sigRxo=sigTxo_DC;
-
+    signal_=Ac+signal;
     %PD
     paramPD.B =nn.Fs;
     paramPD.R =1;
@@ -113,37 +107,95 @@ if 1
     % dither的扩大
     S2=Dither*Ac+Ac*conj(Dither);
     % 拍频项 1
-    S=As*signal.*VbI+conj(As*signal).*VbI;
+    S=(As*signal.*conj(VbI)+conj(As*signal).*VbI);
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
-    % 去除干扰项
-    ipd_btb=ipd_btb-S-S1-S2;
-    % 发射机参数
-    ofdmPHY=nn;
-    %%---------------------------------------        解码       ---------------------------%%
-    Receiver=OFDMreceiver( ...
-        ofdmPHY, ...       %%% 发射机传输的参数
-        ofdmPHY.Fs, ...    %   采样
-        6*ofdmPHY.Fs, ...  % 上采样
-        10*k, ...            % 信道训练长度
-        1:1:ofdmPHY.nModCarriers, ...    %导频位置
-        1, ...             % 选取第一段信号
-        ref_seq, ...       % 参考序列
-        ref_seq_mat, ...    % qam 矩阵
-        'off', ...         % 是否采用CPE
-        'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
+    % 纯净信号
+    btb=pd(signal_,paramPD);
 
-    % 信号预处理
-    [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-    ReceivedSignal=pnorm(ReceivedSignal);
-    % BER 计算
-    [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
+    % 拍频项
+    Signal_Dither_Beat(index,:)=S+S1;
+    % 频谱存储
+    [ IfdBm, Fre ]=mon_ESA_flag((Signal_Dither_Beat(index,:)),fs,0);
+    Signal_Dither_PowerdBm(index,:)=IfdBm;
 
+    % dither扩大项
+    Carrier_Dither_Beat(index,:)=S2;
+    % 频谱存储
+    [ IfdBm, ~ ]=mon_ESA_flag((Carrier_Dither_Beat(index,:)),fs,0);
+    Carrier_Dither_PowerdBm(index,:)=IfdBm;
 
+    % dither自拍频
+    Dither_Dither_Beat(index,:)=ipd_pingfang;
+    % 频谱存储
+    [ IfdBm, ~ ]=mon_ESA_flag((Dither_Dither_Beat(index,:)),fs,0);
+    Dither_Dither_PowerdBm(index,:)=IfdBm;
+
+    % 纯净信号
+    Signal_Beat(index,:)=btb;
+    % 频谱存储
+    [ IfdBm, ~ ]=mon_ESA_flag((Signal_Beat(index,:)),fs,0);
+    Signal_Beat_PowerdBm(index,:)=IfdBm;
+
+    % 残余的噪声
+    Res_noise=ipd_btb-btb;
+    Res_Beat(index,:)=Res_noise;
+    % 频谱存储
+    [ IfdBm, ~ ]=mon_ESA_flag((Res_Beat(index,:)),fs,0);
+    Res_Beat_PowerdBm(index,:)=IfdBm;
 end
 
-mon_ESA(ReceivedSignal,fs);
 
 
-% 各种分量的频谱建模表示
+color=distinguishable_colors(20);
+figure;hold on;
+plot(Fre,Signal_Beat_PowerdBm(1,:),'Color',color(2,:));
+plot(Fre,Res_Beat_PowerdBm(1,:),'Color',color(12,:));
+FontSize=14;
+flag=struct();
+flag.LegendON_OFF=1;
+flag.Legendflage=0;
+% 标题
+LegendArray=["Signal-Beat","Noise"];
+xticks([-32,-20,-10,0,10,20,32]);
+Plotter('Receiver Signal Spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 fs/2/1e9],...
+    [-70 20],LegendArray,flag,FontSize);
+
+
+
+
+% 噪声功率谱
+
+figure;hold on;
+plot(Fre,Signal_Beat_PowerdBm(1,:),'Color',color(1,:));
+plot(Fre,Signal_Dither_PowerdBm(1,:),'Color',color(2,:));
+plot(Fre,Carrier_Dither_PowerdBm(1,:),'Color',color(6,:));
+plot(Fre,Dither_Dither_PowerdBm(1,:),'Color',color(3,:));
+
+FontSize=14;
+flag=struct();
+flag.LegendON_OFF=1;
+flag.Legendflage=0;
+% 标题
+LegendArray=["Signal-Beat","Signal-Dither","Carrier-Dither","Dither-Dither"];
+xticks([-32,-20,-10,0,10,20,32]);
+Plotter('Receiver Signal Spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 fs/2/1e9],...
+    [-50 50],LegendArray,flag,FontSize);
+
+
+
+figure;hold on;
+plot(Fre,Signal_Beat_PowerdBm(2,:),'Color',color(1,:));
+plot(Fre,Signal_Dither_PowerdBm(2,:),'Color',color(2,:));
+plot(Fre,Carrier_Dither_PowerdBm(2,:),'Color',color(6,:));
+plot(Fre,Dither_Dither_PowerdBm(2,:),'Color',color(3,:));
+
+FontSize=14;
+flag=struct();
+flag.LegendON_OFF=1;
+flag.Legendflage=0;
+% 标题
+LegendArray=["Signal-Beat","Signal-Dither","Carrier-Dither","Dither-Dither"];
+xticks([-32,-20,-10,0,10,20,32]);
+Plotter('Receiver Signal Spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 fs/2/1e9],...
+    [-50 50],LegendArray,flag,FontSize);
