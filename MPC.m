@@ -67,10 +67,11 @@ for index= 1:length(flag_mon)
         fprintf("the CSPR is %1.2fdB\n",CSPR);
 
         % 绘图效果
+        leg_text=["Received signal";"Recovered signal using KK algorithm"];
         FontSize=14;
         figure;hold on;
         plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
-        circles_plot(Ac,As,'MPC','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+        circles_plot(Ac,As,'MPC','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
 
         % 接收
@@ -102,7 +103,7 @@ for index= 1:length(flag_mon)
 
     % 绘图效果
     plot(real(s_recovery(1:4e5)),imag(s_recovery(1:4e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'MPC','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'MPC','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     if strcmp(type,'ssb')
         % 变量名

@@ -135,47 +135,48 @@ for index= 1:length(flag_mon)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      绘图效果            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     FontSize=14;
+    leg_text=["Received signal";"Recovered signal using KK algorithm"];
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery(1:2e5)),imag(s_recovery(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'载波-扰动拍频+两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'载波-扰动拍频+两个扰动-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
     
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery1(1:2e5)),imag(s_recovery1(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'载波-扰动拍频+一个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'载波-扰动拍频+一个扰动-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery2(1:2e5)),imag(s_recovery2(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'载波-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'载波-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery3(1:2e5)),imag(s_recovery3(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'两个扰动-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
      figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery4(1:2e5)),imag(s_recovery4(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'扰动平方','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
     
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'扰动平方+两个扰动-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方+两个扰动-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery5(1:2e5)),imag(s_recovery5(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'扰动平方+载波-扰动拍频','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'扰动平方+载波-扰动拍频','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
 
     figure;hold on;
     plot(real(s(1:2e5)),imag(s(1:2e5)),'ro',LineWidth=2);
     plot(real(s_recovery_total(1:2e5)),imag(s_recovery_total(1:2e5)),'bx',LineWidth=2);
-    circles_plot(Ac,As,'所有扰动项','Real','Imag',[5 20],[-2*As 2*As],leg_text,FontSize)
+    circles_plot(Ac,As,'所有扰动项','Re','Im',[5 20],[-2*As 2*As],leg_text,FontSize)
 
     WB.updata(index);
 end
