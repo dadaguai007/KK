@@ -153,7 +153,7 @@ if 1
         'KK');             % 接收方式
 
     % 初始化设置
-    Eb_N0_dB=10:30;
+    Eb_N0_dB=15;
     ber_total=zeros(length(Eb_N0_dB),1);
     num_total=zeros(length(Eb_N0_dB),1);
     WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -211,6 +211,8 @@ if 1
 
 end
 Y=ReceivedSignal-Re;
+[signal_ofdm_martix_RE,data_ofdm_martix_RE,Hf_RE,data_qam_RE,qam_bit_RE]=Receiver.Demodulation(Y);
+[ber,num]=Receiver.Direcct_Cal_BER(data_qam_RE(:));
 X=Y(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
 
 
