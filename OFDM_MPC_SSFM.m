@@ -170,7 +170,7 @@ end
 WB = OCG_WaitBar(k);
 % 发射机参数
 ofdmPHY=nn;
-for i=2
+for i=1:k
 
     %%---------------------------------------        解码       ---------------------------%%
     Receiver=OFDMreceiver( ...
@@ -185,6 +185,7 @@ for i=2
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
         'KK');             % 接收方式
+
 
     % 信号预处理
     [receive,Dc]=Receiver.Preprocessed_signal(ipd_btb);

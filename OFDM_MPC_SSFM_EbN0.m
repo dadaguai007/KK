@@ -1,8 +1,8 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-% addpath('D:\PhD\Project\Base_Code\Base\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Project\Base_Code\Base\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 
 OFDM_TX;
 % 生成信号
@@ -153,7 +153,7 @@ if 1
         'KK');             % 接收方式
 
     % 初始化设置
-    Eb_N0_dB=10:30;
+    Eb_N0_dB=15;
     ber_total=zeros(length(Eb_N0_dB),1);
     num_total=zeros(length(Eb_N0_dB),1);
     WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -196,6 +196,9 @@ for i=1:k
         'off', ...         % 对所有载波进行相位补偿
         'KK');             % 接收方式
 
+    % 削波
+    Receiver.Button.Clipping='on';
+    Receiver.Nr.CL=0.3;
     % 信号预处理
     [receive,Dc]=Receiver.Preprocessed_signal(pd_receiver);
     receive=pnorm(receive);

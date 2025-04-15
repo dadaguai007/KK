@@ -29,6 +29,7 @@ classdef OFDMreceiver < handle
                 error('Number of input variables must be either 0 (default values) or 10');
             end
             obj.Nr.k=1;% 默认为1 ，不变， 选取全部信号时，在函数中更改
+            obj.Button.Clipping='off';% 默认为不削波
         end
 
 
@@ -55,6 +56,14 @@ classdef OFDMreceiver < handle
         end
         % 信号预处理
         function  [ReceivedSignal,Dc]=Preprocessed_signal(obj,rxsig)
+            % 选取某段的信号
+            rxsig=rxsig(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
+            % 削波
+            if strcmp(obj.Button.Clipping,'on')
+               
+                [rxsig,~]=clipping_mean(rxsig,obj.Nr.CL);
+            end
+
             if strcmp(obj.Button.receive_type,'KK')
                 c=0;
                 Dc=mean(rxsig);
@@ -72,8 +81,13 @@ classdef OFDMreceiver < handle
                 ReceivedSignal=pnorm(rxsig);
             end
 
-            % 选取某段的信号
-            ReceivedSignal=ReceivedSignal(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
+%             % 选取某段的信号
+%             ReceivedSignal=ReceivedSignal(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
+%             % 削波
+%             if strcmp(obj.Button.Clipping,'on')
+%                
+%                 [ReceivedSignal,~]=clipping_mean(ReceivedSignal,obj.Nr.CL);
+%             end
             
         end
         % 信号预处理 （信号全部进行选择）
