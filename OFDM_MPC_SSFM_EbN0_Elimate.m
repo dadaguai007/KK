@@ -1,8 +1,8 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-addpath('D:\PhD\Project\Base_Code\Base\')
-% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+% addpath('D:\PhD\Project\Base_Code\Base\')
+addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 
 OFDM_TX;
 % 生成信号
@@ -153,7 +153,7 @@ if 1
         'KK');             % 接收方式
 
     % 初始化设置
-    Eb_N0_dB=15;
+    Eb_N0_dB=10:30;
     ber_total=zeros(length(Eb_N0_dB),1);
     num_total=zeros(length(Eb_N0_dB),1);
     WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -169,52 +169,144 @@ if 1
         % BER 计算
         [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
-        % 选取某段进行解码(可进行优化)
-        %%---------------------------------------        解码       ---------------------------%%
-        Receiver=OFDMreceiver( ...
-            ofdmPHY, ...       %%% 发射机传输的参数
-            ofdmPHY.Fs, ...    %   采样
-            6*ofdmPHY.Fs, ...  % 上采样
-            ofdmPHY.nPkts, ...            % 信道训练长度
-            1:1:ofdmPHY.nModCarriers, ...    %导频位置
-            10, ...             % 选取一段信号
-            ref_seq, ...       % 参考序列
-            qam_signal, ...    % qam 矩阵
-            'off', ...         % 是否采用CPE
-            'off', ...         % 对所有载波进行相位补偿
-            'KK');             % 接收方式
+        Error=[];
+        for i=1:k
+            % 选取某段进行解码(可进行优化)
+            %%---------------------------------------        解码       ---------------------------%%
+            Receiver=OFDMreceiver( ...
+                ofdmPHY, ...       %%% 发射机传输的参数
+                ofdmPHY.Fs, ...    %   采样
+                6*ofdmPHY.Fs, ...  % 上采样
+                ofdmPHY.nPkts, ...            % 信道训练长度
+                1:1:ofdmPHY.nModCarriers, ...    %导频位置
+                i, ...             % 选取一段信号
+                ref_seq, ...       % 参考序列
+                qam_signal, ...    % qam 矩阵
+                'off', ...         % 是否采用CPE
+                'off', ...         % 对所有载波进行相位补偿
+                'KK');             % 接收方式
+            % obj.Nr.squ_num 选取第n段。
+%             Receiver.Button.Clipping='on';
+%             Receiver.Nr.CL=0.2;
+            % 信号预处理
+            [receive,dc]=Receiver.Preprocessed_signal(pd_receiver);
+            [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
 
-        % 信号预处理
-        [receive,~]=Receiver.Preprocessed_signal(pd_receiver);
-        [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
+            % BER 计算
+            [ber,num]=Receiver.Cal_BER(receive);
 
-        % BER 计算
-        [ber,num]=Receiver.Cal_BER(receive);
+            % 选取性能较好段，进行重新调制
+            [ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
+            % 补上直流
+            Re_Signal=Dc+ofdm_signal;
 
-        % 选取性能较好段，进行重新调制
-        [ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
-        % 补上直流
-        Re_Signal=Dc+ofdm_signal;
+            rr=receive.'-Re_Signal;
+            % 计算误差
+            Error=cat(1,Error,rr);
+
+        end
+
+        Signal=ReceivedSignal-Error.';
+        % 更正解码参数
+        Receiver.Total_Preprocessed_signal(ipd_btb);
+        %解码
+        [ber_total1(index),num_total1(index)]=Receiver.Cal_BER(Signal);
+
+
+        % 再进行一次循环
+        Error1=[];
+        for j=1:k
+            Receiver=OFDMreceiver( ...
+                ofdmPHY, ...       %%% 发射机传输的参数
+                ofdmPHY.Fs, ...    %   采样
+                6*ofdmPHY.Fs, ...  % 上采样
+                ofdmPHY.nPkts, ...            % 信道训练长度
+                1:1:ofdmPHY.nModCarriers, ...    %导频位置
+                j, ...             % 选取一段信号
+                ref_seq, ...       % 参考序列
+                qam_signal, ...    % qam 矩阵
+                'off', ...         % 是否采用CPE
+                'off', ...         % 对所有载波进行相位补偿
+                'KK');             % 接收方式
+            Y=Signal(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
+            [signal_ofdm_martix_RE,data_ofdm_martix_RE,Hf_RE,data_qam_RE,qam_bit_RE]=Receiver.Demodulation(Y);
+            [ber,num]=Receiver.Direcct_Cal_BER(data_qam_RE(:));
+
+            % 选取性能较好段，进行重新调制
+            [ofdm_signal1,~] = nn.ofdm(data_ofdm_martix_RE);
+            % 补上直流
+            Re_Signal1=Dc+ofdm_signal1;
+
+            rr1=Y.'-Re_Signal1;
+            % 计算误差
+            Error1=cat(1,Error1,rr1);
+
+        end
+        Signal1=Signal-Error1.';
+        % 更正解码参数
+        Receiver.Total_Preprocessed_signal(ipd_btb);
+        %解码
+        [ber_total2(index),num_total2(index)]=Receiver.Cal_BER(Signal1);
+
+
+
+        % 再进行一次循环
+        Error2=[];
+        for g=1:k
+            Receiver=OFDMreceiver( ...
+                ofdmPHY, ...       %%% 发射机传输的参数
+                ofdmPHY.Fs, ...    %   采样
+                6*ofdmPHY.Fs, ...  % 上采样
+                ofdmPHY.nPkts, ...            % 信道训练长度
+                1:1:ofdmPHY.nModCarriers, ...    %导频位置
+                g, ...             % 选取一段信号
+                ref_seq, ...       % 参考序列
+                qam_signal, ...    % qam 矩阵
+                'off', ...         % 是否采用CPE
+                'off', ...         % 对所有载波进行相位补偿
+                'KK');             % 接收方式
+            Y2=Signal1(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
+            [signal_ofdm_martix_RE1,data_ofdm_martix_RE1,Hf_RE1,data_qam_RE1,qam_bit_RE1]=Receiver.Demodulation(Y2);
+            [ber,num]=Receiver.Direcct_Cal_BER(data_qam_RE1(:));
+
+            % 选取性能较好段，进行重新调制
+            [ofdm_signal2,~] = nn.ofdm(data_ofdm_martix_RE1);
+            % 补上直流
+            Re_Signal2=Dc+ofdm_signal2;
+
+            rr2=Y2.'-Re_Signal2;
+            % 计算误差
+            Error2=cat(1,Error2,rr2);
+
+        end
+        Signal2=Signal1-Error2.';
+        % 更正解码参数
+        Receiver.Total_Preprocessed_signal(ipd_btb);
+        %解码
+        [ber_total3(index),num_total3(index)]=Receiver.Cal_BER(Signal2);
+
+
+
         % 信号复制
         signal_Re=repmat(Re_Signal,k,1);
+
         % 残留噪声
         Re=ReceivedSignal-signal_Re.';
         % 更正解码参数
         Receiver.Total_Preprocessed_signal(ipd_btb);
         % 解码(接收信号减去残留噪声)
-        [ber_total1(index),num_total1(index)]=Receiver.Cal_BER(ReceivedSignal-Re);
- 
+        [ber_total4(index),num_total4(index)]=Receiver.Cal_BER(ReceivedSignal-Re);
+
+
         WB.updata(index);
+
     end
     WB.closeWaitBar();% 分段解码
 
 
 end
-Y=ReceivedSignal-Re;
-[signal_ofdm_martix_RE,data_ofdm_martix_RE,Hf_RE,data_qam_RE,qam_bit_RE]=Receiver.Demodulation(Y);
-[ber,num]=Receiver.Direcct_Cal_BER(data_qam_RE(:));
-X=Y(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
-
+% % Y=ReceivedSignal-Re;
+% % X=Y(Receiver.ofdmPHY.len*(Receiver.Nr.squ_num-1)+1:Receiver.ofdmPHY.len*Receiver.Nr.squ_num);
 
 
 
@@ -226,6 +318,6 @@ berplot.Config.FontSize = 14;
 berplot.flagThreshold=1;
 berplot.flagRedraw=0;
 berplot.flagAddLegend=1;
-BER=[ber_total.';ber_total1];
-LengendArrary=["80km w/o ","80km w SIC"];
+BER=[ber_total.';ber_total1;ber_total2;ber_total3;ber_total4];
+LengendArrary=["80km w/o ","80km w SIC","80km w SIC-2","80km w SIC-3","80km Non-iterative"];
 berplot.multiplot(Eb_N0_dB,BER,LengendArrary);
