@@ -109,13 +109,13 @@ for index= 1:length(flag_mon)
         % 变量名
         [IfdBm_Dith_ssb , ~ ]=mon_ESA_flag(ln_sig,f_up,0);
         [ IfdBm_Dith_ssb_Ht, Fre ]=mon_ESA_flag(H_sig,f_up,0);
-        [ IfdBm_Dith_ssb_receiver, fre ]=mon_ESA(s_recovery,fs,0);
-         [ IfdBm_Dith_ssb_I, fre ]=mon_ESA(I_pd,fs,0);
+        [ IfdBm_Dith_ssb_receiver, fre ]=mon_ESA_flag(s_recovery,fs,0);
+         [ IfdBm_Dith_ssb_I, fre ]=mon_ESA_flag(I_pd,fs,0);
     elseif strcmp(type,'dsb')
         [IfdBm_Dith_dsb , ~ ]=mon_ESA_flag(ln_sig,f_up,0);
         [ IfdBm_Dith_dsb_Ht, Fre ]=mon_ESA_flag(H_sig,f_up,0);
-         [ IfdBm_Dith_dsb_receiver, fre ]=mon_ESA(s_recovery,fs,0);
-         [ IfdBm_Dith_dsb_I, fre ]=mon_ESA(I_pd,fs,0);
+         [ IfdBm_Dith_dsb_receiver, fre ]=mon_ESA_flag(s_recovery,fs,0);
+         [ IfdBm_Dith_dsb_I, fre ]=mon_ESA_flag(I_pd,fs,0);
     end
    WB.updata(index);
 end
