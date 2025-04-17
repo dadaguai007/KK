@@ -5,7 +5,7 @@ clear;clc;close all;
 addpath('D:\PhD\Codebase\')
 % addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath('Fncs\')
-
+addpath('Plot\')
 % 载波幅度
 Ac=4;
 % 信号幅度
