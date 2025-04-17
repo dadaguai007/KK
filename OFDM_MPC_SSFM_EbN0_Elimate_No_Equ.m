@@ -1,11 +1,9 @@
 % dither 对 多载波信号的影响
-
-% 迭代消除
-
 clear;close all;clc;
 addpath('Fncs\')
 % addpath('D:\PhD\Project\Base_Code\Base\')
 addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath("Plot\")
 
 OFDM_TX;
 % 生成信号
@@ -62,11 +60,8 @@ V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-% vpp=num2str(alfa1);% 百分之Vpi
 
 
-%IQ
-N=length(label);
 
 % 转置
 signal=signal.';
@@ -106,7 +101,6 @@ if 1
     % 调制
     sigTxo = iqm(Ai, Amp*signal, paramIQ);
 
-
     signal_power=signalpower(sigTxo);
     fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
 
@@ -141,7 +135,7 @@ if 1
     paramPD.Fs=nn.Fs;
     %pd
     ipd_btb = pd(sigRxo, paramPD);
-    ipd_btb=pnorm(ipd_btb);
+
     % 发射机参数
     ofdmPHY=nn;
     %%---------------------------------------        解码       ---------------------------%%
@@ -158,49 +152,78 @@ if 1
         'off', ...         % 对所有载波进行相位补偿
         'KK');             % 接收方式
 
-    % 信号预处理
-    [ReceivedSignal,dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
-    % 归一化
-    ReceivedSignal=pnorm(ReceivedSignal);
-    Dc=mean(ReceivedSignal);
-    % BER 计算
-    [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
-    
-    ipd_pd=ipd_btb;
-    for jj=1:60
-    dd=real(Dc);
-    % 重新计算E2和E1
-    Rece_remove_dc=ReceivedSignal-dd;
-    E1=2*real(dd)*(VbI);
-    E2=2*real(Rece_remove_dc).*(VbI)+2*imag(Rece_remove_dc).*(VbQ);
-    
-    alpha=0.005;
-    ipd_error=alpha*(E1+E2);
+    % 初始化设置
+    Eb_N0_dB=10:30;
+    ber_total=zeros(length(Eb_N0_dB),1);
+    num_total=zeros(length(Eb_N0_dB),1);
+    WB = OCG_WaitBar(length(Eb_N0_dB));
+    for index=1:length(Eb_N0_dB)
+        % 噪声
+        noise=EbN0_dB(sigRxo,Eb_N0_dB(index));
+        
+        % 加入噪声
+        pd_receiver = pnorm(ipd_btb)+noise;
 
-    ipd_pd=ipd_pd-ipd_error;
+        % 信号预处理
+        [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
+        % BER 计算
+        [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
 
-     % 信号预处理
-    [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(ipd_pd);
-    % 归一化
-    ReceivedSignal=pnorm(ReceivedSignal);
-    % BER 计算
-    [ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal);
+        % 设置单边带信号
+        VbQ1 = Vdither(1)*Creat_dither1(Fs_new,f2,N*(f2/f1));
+        VbQ_ssb = 1j*Vdither(1)*Creat_ssb(Fs_new,f2,N*(f2/f1));
+        VbI_ssb = Vdither(1)*Creat_ssb(Fs_new,f1,N);
+
+        ipd_pd=pd_receiver;
+        for jj=1:50
+            dd=real(Dc);
+            % 重新计算E2和E1
+            Rece_remove_dc=ReceivedSignal-dd;
+
+            % 载波与dither 拍频
+            E1=2*real(dd)*VbI+2*real(dd)*VbQ1;
+            % 信号与dither拍频
+            I_beat=Rece_remove_dc.*conj(VbI_ssb)+conj(Rece_remove_dc).*VbI_ssb;
+            Q_beat=Rece_remove_dc.*conj(VbQ_ssb)+conj(Rece_remove_dc).*VbQ_ssb;
+
+            %     E1=2*real(dd)*(VbI);
+            E2=I_beat+Q_beat;
+
+            alpha=0.008;
+            ipd_error=alpha*(E1+E2);
+
+            ipd_pd=ipd_pd-ipd_error;
+
+
+            % 信号预处理
+            [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_pd);
+%             % 归一化
+%             ReceivedSignal=pnorm(ReceivedSignal);
+            % BER 计算
+            [ber_total1(jj),num_total1(jj)]=Receiver.Cal_BER(ReceivedSignal);
+        end
+
+        
+        ber_total_itera(index)=min(ber_total1);
+        WB.updata(index);
     end
+    WB.closeWaitBar();
+
+
 end
 
 
 
-[If_pd,fre]=mon_ESA_flag(ipd_btb,fs,0);
-[If_dbm_error,fre]=mon_ESA_flag(ipd_error,fs,0);
-[If_dbm,fre]=mon_ESA_flag(ipd_pd,fs,0);
-[If_kk,fre]=mon_ESA_flag(ReceivedSignal,fs,0);
 
-figure;hold on;
-
-plot(fre,If_kk)
-plot(fre,If_pd)
-plot(fre,If_dbm_error)
-plot(fre,If_dbm)
-legend('恢复算法','接收','误差','接收减去误差')
-xlim([11.5815 11.5835]);
+berplot = BERPlot_David();
+% 间隔
+berplot.interval=2;
+% 字号
+berplot.Config.FontSize = 14;
+berplot.flagThreshold=1;
+berplot.flagRedraw=0;
+berplot.flagAddLegend=1;
+BER=[ber_total.';ber_total_itera];
+LengendArrary=["80km w/o ","80km w SIC"];
+berplot.multiplot(Eb_N0_dB,BER,LengendArrary);
