@@ -114,9 +114,10 @@ classdef OFDMreceiver < handle
             obj.Nr.k=length(ReceivedSignal)./obj.ofdmPHY.len;
         end
 
-        function [ber,num]=Cal_BER(obj,ReceivedSignal)
+        function [ber,num,l]=Cal_BER(obj,ReceivedSignal)
             % 解调算法
             [~,~,~,~,qam_bit]=obj.Demodulation(ReceivedSignal);
+            l=length(qam_bit);
             % label信号
             ref_seq =qamdemod(obj.Implementation.ref ,obj.ofdmPHY.M,'OutputType','bit','UnitAveragePower',1);
             ref_seq=ref_seq(:);

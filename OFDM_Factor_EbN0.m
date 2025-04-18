@@ -1,8 +1,9 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-addpath('D:\PhD\Project\Base_Code\Base\')
-% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+% addpath('D:\PhD\Project\Base_Code\Base\')
+addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('Plot\')
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -19,7 +20,7 @@ signal = signal./scale_factor;
 ref_seq=reshape(qam_signal,1,[]);
 ref_seq = repmat(ref_seq,1,100);
 % 重复信号
-k=20;
+k=30;
 % qam信号矩阵
 ref_seq_mat=repmat(qam_signal,1,k);
 
@@ -58,11 +59,6 @@ V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-% vpp=num2str(alfa1);% 百分之Vpi
-
-
-%IQ
-N=length(label);
 
 % 转置
 signal=signal.';
@@ -78,6 +74,16 @@ if 1
         VbQ=Vdither(1)*Vdither2+Vdither(2)*Vdither_2;
     end
 
+    VbI_sin = Vdither(1)*Creat_dither1(Fs_new,f1,N);
+    VbQ_sin = Vdither(1)*Creat_dither1(Fs_new,f2,N*(f2/f1));
+    % 验证 信号是否正确
+    a1=Vdither(1)/2*Creat_ssb(Fs_new,f1,N);
+    a2=Vdither(1)/2*Creat_ssb1(Fs_new,f1,N);
+    
+    b1=1j*Vdither(1)/2*Creat_ssb(Fs_new,f2,N*(f2/f1));
+    b2=1j*Vdither(1)/2*Creat_ssb1(Fs_new,f2,N*(f2/f1));
+
+    error_tone=VbI-(a1+a2);
     % 载波幅度
     Ac=1.15;
     % 加载信号
@@ -108,14 +114,82 @@ if 1
     paramPD.Fs=nn.Fs;
     %pd
     ipd_btb = pd(sigRxo, paramPD);
+    % 信号拍频项
+    E=pd(Ac+signal,paramPD);
     % dither 平方项
     ipd_pingfang = pd(Dither, paramPD);
     % dither的扩大
     S2=Dither*Ac+Ac*conj(Dither);
+    S2_1=Ac*VbI+Ac*conj(VbI);
+    S2_2=Ac*1j*VbQ+Ac*conj(1j*VbQ);
     % 拍频项 1
     S=As*signal.*VbI+conj(As*signal).*VbI;
     % 拍频项 2
     S1=real(As*signal.*conj(1j*VbQ)+conj(As*signal).*(1j*VbQ));
+    
+    % 误差，探寻分量设置是否正确
+    error=ipd_btb-ipd_pingfang-S2-S-S1-E;
+
+
+    % I 路
+    % 负频率 dither
+
+    % 与载波拍频
+    E2_S2=Ac*VbI;
+    % 与信号拍频
+    E2_S=signal.*conj(a1)+conj(signal).*a1;
+    E2_S_hat=real(signal).*VbI-imag(signal).*VbI_sin;
+
+    % 验证 负dither 与 信号拍频的简便表达形式
+    error_ff=E2_S-E2_S_hat;
+
+    % 自拍频
+    E2_self=a1.*conj(a1);
+
+    % 正频率 dither
+
+    % 与载波拍频
+    E1_S2=Ac*VbI;
+    % 与信号拍频
+    E1_S=signal.*conj(a2)+conj(signal).*a2;
+    E1_S_hat=real(signal).*VbI+imag(signal).*VbI_sin;
+
+    % 验证 正dither 与 信号拍频的简便表达形式
+    error_ff1=E1_S-E1_S_hat;
+    % 自拍频
+    E1_self=a2.*conj(a2);
+
+    % 验证 dither 信号拍频是否正确
+    error_S=S-E2_S-E1_S;
+    % 验证 dither 载波拍频是否正确
+    error_S2=S2_1-E2_S2-E1_S2;
+
+
+   % Q 路
+   % 负频率
+
+   % 与载波拍频
+    E2_S1=Ac*VbQ_sin;
+    % 与信号拍频
+    E2_S_car=signal.*conj(b1)+conj(signal).*b1;
+    E2_S_car_hat=real(signal).*VbQ_sin+imag(signal).*VbQ;
+
+
+   % 正频率
+
+    % 与载波拍频
+    E1_S1=-Ac*VbQ_sin;
+    % 与信号拍频
+    E1_S_car=signal.*conj(b2)+conj(signal).*b2;
+    E1_S_car_hat=-real(signal).*VbQ_sin+imag(signal).*VbQ;
+    
+    % 验证 Q 路 dither 信号拍频是否正确
+    error_S=S1-E2_S_car_hat-E1_S_car_hat;
+
+
+   % 接收信号E2，E1，E
+
+
 
     % 存储各种接收信号
     DataGroup = cell(1, 5);

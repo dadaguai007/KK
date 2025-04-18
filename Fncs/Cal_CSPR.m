@@ -1,4 +1,4 @@
-function Cal_CSPR(sigTxo,Ai,Vpi,phi)
+function Eout1=Cal_CSPR(sigTxo,Ai,Vpi,phi)
 
 % Cal CSPR
 param.Vpi=Vpi;

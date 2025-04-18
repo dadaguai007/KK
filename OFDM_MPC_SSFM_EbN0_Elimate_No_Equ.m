@@ -13,15 +13,11 @@ SpS=nn.Fs/nn.Rs;
 % 采样率
 fs=nn.Fs;
 
-% 归一化
-scale_factor = max(max(abs(real(signal))),max(abs(imag(signal))));
-signal = signal./scale_factor;
-
 %参考信号
 ref_seq=reshape(qam_signal,1,[]);
 ref_seq = repmat(ref_seq,1,100);
 % 重复信号
-k=20;
+k=30;
 % qam信号矩阵
 ref_seq_mat=repmat(qam_signal,1,k);
 
@@ -84,7 +80,7 @@ if 1
     Pi_dBm = 10;
     Pi = 10^(Pi_dBm/10)*1e-3; %W
 
-    phi=0.87; % Vbias 偏移程度
+    phi=0.86; % Vbias 偏移程度
     paramIQ.Vpi=9;
     if strcmp(type,'dsb')
         paramIQ.VbI=-phi*paramIQ.Vpi+VbI;
@@ -190,16 +186,15 @@ if 1
             %     E1=2*real(dd)*(VbI);
             E2=I_beat+Q_beat;
 
-            alpha=0.008;
+            alpha=0.005;
             ipd_error=alpha*(E1+E2);
 
             ipd_pd=ipd_pd-ipd_error;
 
 
             % 信号预处理
-            [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_pd);
-%             % 归一化
-%             ReceivedSignal=pnorm(ReceivedSignal);
+            [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(ipd_pd);
+            Dc=mean(ReceivedSignal);
             % BER 计算
             [ber_total1(jj),num_total1(jj)]=Receiver.Cal_BER(ReceivedSignal);
         end
