@@ -1,9 +1,9 @@
 % dither 对 多载波信号的影响
 clear;close all;clc;
 addpath('Fncs\')
-% addpath('D:\PhD\Project\Base_Code\Base\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
-
+addpath('D:\PhD\Project\Base_Code\Base\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('Plot\')
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -59,11 +59,6 @@ V1=alfa1*As;% I路dither幅度 双边带下两路的dither幅度
 V2=alfa2*As;% Q路dither幅度
 V=[V1,V2];
 
-% vpp=num2str(alfa1);% 百分之Vpi
-
-
-%IQ
-N=length(label);
 
 % 转置
 signal=signal.';
@@ -234,14 +229,6 @@ Plotter('Residual noise spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 
 
 % 创建时间轴
 [~,t_up]=freq_time_set(length(signal),fs);
-
-figure;
-plot(t_up,real(ReceivedSignal-Re),'b')
-flag=struct();
-flag.LegendON_OFF=0;
-xticks([0,1e-5,2e-5,3e-5,3.5e-5]);
-Plotter('Recovered signal','Time','Amplitude',[0 3.5e-5],[-1.5 1.5],...
-    '',flag,FontSize);
 
 
 
