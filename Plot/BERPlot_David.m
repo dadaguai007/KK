@@ -105,25 +105,25 @@ classdef BERPlot_David < handle
 
 
 
-            
-%             h(1) = plot(rop,qfactor_db,...
-%                 [obj.marker(markerID)],...
-%                 'Linewidth',obj.Config.LineWidth,...
-%                 'MarkerEdgeColor',obj.color(colorId,:),...
-%                 'MarkerFaceColor',mfc,...
-%                 'MarkerSize',obj.Config.MarkerSize);
+
+            %             h(1) = plot(rop,qfactor_db,...
+            %                 [obj.marker(markerID)],...
+            %                 'Linewidth',obj.Config.LineWidth,...
+            %                 'MarkerEdgeColor',obj.color(colorId,:),...
+            %                 'MarkerFaceColor',mfc,...
+            %                 'MarkerSize',obj.Config.MarkerSize);
 
             % interpolation if needed
             if obj.flagInterpolation
                 figure(99); hold on;
 
-%                 fit_axis = x_min-5:x_max+5;
-%                 p = polyfit(rop,qfactor_db,obj.orderInterpolation);
-%                 q = polyval(p,fit_axis);
-%                 h(1) = plot(fit_axis,q,...
-%                     ['-'],...
-%                     'Color',obj.color(colorId,:),...
-%                     'Linewidth',obj.Config.LineWidth);
+                %                 fit_axis = x_min-5:x_max+5;
+                %                 p = polyfit(rop,qfactor_db,obj.orderInterpolation);
+                %                 q = polyval(p,fit_axis);
+                %                 h(1) = plot(fit_axis,q,...
+                %                     ['-'],...
+                %                     'Color',obj.color(colorId,:),...
+                %                     'Linewidth',obj.Config.LineWidth);
 
                 h(1) = plot(rop,qfactor_db,...
                     [obj.marker(markerID)],...
@@ -156,7 +156,7 @@ classdef BERPlot_David < handle
             set(gca, 'FontName', 'Arial');
             if obj.flagMinorTick
                 obj.addYMinorTick;
-%                                 set(gca,'YMinorGrid','on','MinorGridAlpha',0.1);
+                %                                 set(gca,'YMinorGrid','on','MinorGridAlpha',0.1);
             end
             set(gcf,'pos',[200,200,obj.Config.FigureSize]);
             set(gca, 'LineWidth',obj.Config.AxisLineWidth);
@@ -204,13 +204,13 @@ classdef BERPlot_David < handle
                 hold off;
             end
             if obj.flagThreshold
-            Threshold_qfactor_db = obj.ber2q(3.8e-3);
-            figure(99);hold on;
-            h{idx+1} = plot(ropMat(1,:),Threshold_qfactor_db*ones(1,length(ropMat(1,:))),...
-                '--','Linewidth',2,...
-                'Color',obj.color(12,:));
-            h{idx+1}(3)=h{idx+1}(1);
-            hold off;
+                Threshold_qfactor_db = obj.ber2q(3.8e-3);
+                figure(99);hold on;
+                h{idx+1} = plot(ropMat(1,:),Threshold_qfactor_db*ones(1,length(ropMat(1,:))),...
+                    '--','Linewidth',2,...
+                    'Color',obj.color(12,:));
+                h{idx+1}(3)=h{idx+1}(1);
+                hold off;
             end
             if obj.flagRedraw
                 y_min= obj.ber2q(3e-2);
@@ -233,11 +233,11 @@ classdef BERPlot_David < handle
                 for idx = 1:length(h)
                     lv(idx) = h{idx}(3);
                 end
-                                lgd=legend(lv,legendStrArry{:},'Location','best');
-                                if obj.legendflage
-                                    set(lgd, 'Color', 'none'); % 设置图例框的颜色为'none'
-                                    set(lgd, 'Box', 'off');
-                                end
+                lgd=legend(lv,legendStrArry{:},'Location','best');
+                if obj.legendflage
+                    set(lgd, 'Color', 'none'); % 设置图例框的颜色为'none'
+                    set(lgd, 'Box', 'off');
+                end
                 if 0
                     lgd=legend(lv(1:4),legendStrArry{1:4},'Location','best');
                     if obj.legendflage
@@ -254,6 +254,23 @@ classdef BERPlot_David < handle
                     set(lgd1,'FontName','Arial','FontSize',obj.Config.FontSize);
                 end
             end
+        end
+
+        function repositionImageVertically(obj,ber)
+            % 输入 最大和最小的两组BER信号,
+            % 第一行设置为最小组；第二行设置为最大组
+
+            % 输入 最小 BER组
+            % calculate Q-factor from BER
+            qfactor_db = obj.ber2q(ber(1,:));
+            % calculate the range of Q axis
+            q_axis_db = obj.ber2q(obj.BER_axis);
+            % find the min. and max. for y axis
+            y_min = max(q_axis_db(q_axis_db<min(qfactor_db)));
+            % 输入 最大 BER组
+            qfactor_db1 = obj.ber2q(ber(2,:));
+            y_max = min(q_axis_db(q_axis_db>max(qfactor_db1)));
+            set(gca,'ylim',[y_min y_max]);
         end
 
         function addYMinorTick(obj)
