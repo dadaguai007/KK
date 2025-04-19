@@ -36,7 +36,7 @@ classdef BERPlot_David < handle
             1e-11 1e-12];
         color=distinguishable_colors(20);
         %         color = 'rbkmcyg';
-        marker = 'so^d>v*p';
+        marker = 'so^d>v*phx';
     end
 
 
