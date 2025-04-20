@@ -1,4 +1,4 @@
-% 迭代消除
+% 验证迭代消除的算法可行性
 
 clear;close all;clc;
 addpath('Fncs\')

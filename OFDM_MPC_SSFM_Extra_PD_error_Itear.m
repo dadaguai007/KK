@@ -158,18 +158,6 @@ if 1
     % 场信号的载波
     Dc=mean(ReceivedSignal);
 
-    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(ReceivedSignal);
-
-    OFDM=[];
-    for ii=1:k
-        I=data_ofdm_martix(:,(ii-1)*nn.nPkts+1:ii*nn.nPkts);
-        % 进行重新调制
-        [ofdm_signal,~] = nn.ofdm(I);
-        OFDM=[OFDM;(ofdm_signal)];
-    end
-    % 补上直流
-    ReceivedSignal=dc+OFDM.';
-
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -205,18 +193,6 @@ if 1
         % 信号预处理
         [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(ipd_pd);
         Dc=mean(ReceivedSignal);
-%         [signal_ofdm_martix,data_ofdm_martix1,Hf,data_qam,qam_bit]=Receiver.Demodulation(ReceivedSignal);
-% 
-%         OFDM1=[];
-%         for ii=1:k
-%             I=data_ofdm_martix1(:,(ii-1)*nn.nPkts+1:ii*nn.nPkts);
-%             % 进行重新调制
-%             [ofdm_signal1,~] = nn.ofdm(I);
-%             OFDM1=[OFDM1;(ofdm_signal1)];
-%         end
-%         % 补上直流
-%         ReceivedSignal=dc1+OFDM1.';
-
 
         % BER 计算
         [ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal);
@@ -244,11 +220,6 @@ if 1
 
         % 信号预处理
         [receive,~]=Receiver.Preprocessed_signal(ipd_btb);
-%         [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
-%         % 选取性能较好段，进行重新调制
-%         [ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
-%         % 补上直流
-%         receive=dc+ofdm_signal.';
 
         % BER 计算
         [ber,num]=Receiver.Cal_BER(receive);
@@ -282,12 +253,6 @@ if 1
             % 信号预处理
             [receive,dc2]=Receiver.Total_Preprocessed_signal(rx_pd);
             Dc=mean(receive);
-%             [signal_ofdm_martix,data_ofdm_martix1,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
-% 
-%             % 选取性能较好段，进行重新调制
-%             [ofdm_signal1,~] = nn.ofdm(data_ofdm_martix1);
-%             % 补上直流
-%             receive=dc2+ofdm_signal1.';
             % BER 计算
             [ber_total2,num_total2]=Receiver.Cal_BER(receive);
         end
