@@ -1,0 +1,15 @@
+alpha是指改变alpha参数，带来的误码率
+
+Dither是改变dither 幅度或者 频率大小带来的仿真结果
+
+Algriom是迭代消除算法
+
+decode Group 是 分组 KK ，再进行分组解码
+
+one_by_one 是分组kk ，一起解码
+
+Dither——Fre是改变频率，一起KK，一起解码
+
+Dither 0，2,5,8是一起KK，一起解码
+
+Algriom_Dither_025810 是迭代算法， 一起KK，一起解码
