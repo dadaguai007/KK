@@ -24,8 +24,8 @@ ref_seq_mat=repmat(qam_signal,1,k);
 % 信号复制
 signal=repmat(signal,k,1);
 % dither 的频率处理
-f1=40e3;
-f2=60e3;
+f1=400e3;
+f2=600e3;
 Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 

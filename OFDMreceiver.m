@@ -11,7 +11,7 @@ classdef OFDMreceiver < handle
 
     methods
         function obj = OFDMreceiver(varargin)
-            if numel(varargin) == 11
+            if numel(varargin) == 12
                 obj.ofdmPHY                     = varargin{1} ;% 传递而来的OFDM 参数
                 obj.Nr.fOsc                     = varargin{2};
                 obj.Nr.fUp                      = varargin{3};
@@ -24,6 +24,7 @@ classdef OFDMreceiver < handle
                 obj.Button.CPE_Status           = varargin{9};% 默认 关闭 CPE
                 obj.Button.PN_Total_Carrier     = varargin{10};% 默认 关闭 所有载波相除相噪
                 obj.Button.receive_type         = varargin{11};% 默认 直接接收
+                obj.Button.selectAll            = varargin{12}; % 是否选取全部信号 或者 分段选取
                 
             else
                 error('Number of input variables must be either 0 (default values) or 10');
@@ -54,10 +55,49 @@ classdef OFDMreceiver < handle
             % phase recovered signal
             compSig = hn.*phi;
         end
+        
+
+
+        % 同步操作 
+        function [DataGroup,selectedPortion]=Synchronization(obj,rxsig)
+            % 先找到信号分为多少段
+            Index=length(rxsig)/obj.ofdmPHY.len;
+
+            % 数据进行存储
+            DataGroup = cell(1, Index);
+            for Idx=1:Index
+                Data =rxsig(obj.ofdmPHY.len*(Idx-1)+1:obj.ofdmPHY.len*Idx);
+                DataGroup{Idx} = Data;
+            end
+
+            if strcmp(obj.Button.selectAll,'on')
+             % 选取全部信号
+                selectedPortion=rxsig;
+                % 后续 DSP 使用的数组长度进行变化
+                obj.Nr.k=Index;
+            else
+                % 选取某个数据段
+                selectedPortion=rxsig(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
+            end
+            
+
+        end
+
+
+        % 选取某段信号
+        function selectedPortion=selectSignal(obj,Index,DataGroup)
+            if obj.Nr.squ_num > Index
+                warning('选取序列超出范围')
+                return;
+            else
+                % 选取数据段
+                selectedPortion= DataGroup{obj.Nr.squ_num};
+            end
+        end
+
+
         % 信号预处理
         function  [ReceivedSignal,Dc]=Preprocessed_signal(obj,rxsig)
-            % 选取某段的信号
-            rxsig=rxsig(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
             % 削波
             if strcmp(obj.Button.Clipping,'on')
                
@@ -65,11 +105,9 @@ classdef OFDMreceiver < handle
             end
 
             if strcmp(obj.Button.receive_type,'KK')
-                c=0;
                 Dc=mean(rxsig);
                 % KK
-                [SSB_Sig_KK,~]=obj.KK_receiver(rxsig.'+c);
-
+                [SSB_Sig_KK,~]=obj.KK_receiver(rxsig.');
                 %下采样
                 ReceivedSignal = downsample(SSB_Sig_KK,obj.Nr.fUp/obj.Nr.fOsc);
 
@@ -80,39 +118,9 @@ classdef OFDMreceiver < handle
                 rxsig=rxsig-mean(rxsig);
                 ReceivedSignal=pnorm(rxsig);
             end
-
-%             % 选取某段的信号
-%             ReceivedSignal=ReceivedSignal(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
-%             % 削波
-%             if strcmp(obj.Button.Clipping,'on')
-%                
-%                 [ReceivedSignal,~]=clipping_mean(ReceivedSignal,obj.Nr.CL);
-%             end
             
         end
-        % 信号预处理 （信号全部进行选择）
-        function  [ReceivedSignal,Dc]=Total_Preprocessed_signal(obj,rxsig)
-            if strcmp(obj.Button.receive_type,'KK')
-                c=0;
-                Dc=mean(rxsig);
-                % KK
-                [SSB_Sig_KK,~]=obj.KK_receiver(rxsig.'+c);
 
-                %下采样
-                ReceivedSignal = downsample(SSB_Sig_KK,obj.Nr.fUp/obj.Nr.fOsc);
-
-            elseif strcmp(obj.Button.receive_type,'DD')
-                % 不使用KK算法，使用带宽隔开,需要去除DC
-                % DC-remove
-                Dc=mean(rxsig);
-                rxsig=rxsig-mean(rxsig);
-                ReceivedSignal=pnorm(rxsig);
-            end
-
-            % 选取全部信号
-            % ReceivedSignal=ReceivedSignal(obj.ofdmPHY.len*(obj.Nr.squ_num-1)+1:obj.ofdmPHY.len*obj.Nr.squ_num);
-            obj.Nr.k=length(ReceivedSignal)./obj.ofdmPHY.len;
-        end
 
         function [ber,num,l]=Cal_BER(obj,ReceivedSignal)
             % 解调算法
@@ -247,14 +255,14 @@ classdef OFDMreceiver < handle
             rxTrainSymbol = data_ofdm(:,1:1:obj.Nr.nTrainSym);
             qam_signal_mat=repmat(obj.Implementation.qam_signal,1,1);
             refTrainSymbol = qam_signal_mat(:,1:1:obj.Nr.nTrainSym);
-%             % 信道响应
+            % 信道响应
             Hf = mean(rxTrainSymbol./refTrainSymbol,2);
 
-%             % channel equalization
+            % channel equalization
             data_kk = data_ofdm.*repmat(1./Hf,1,obj.ofdmPHY.nPkts*obj.Nr.k);
-            %
-%             Hf = rxTrainSymbol./refTrainSymbol;
-%             data_kk = data_ofdm.*(1./Hf);
+            
+            % Hf = rxTrainSymbol./refTrainSymbol;
+            % data_kk = data_ofdm.*(1./Hf);
         end
         % 相位均衡 CPE
         function data=CPE_Eliminate(obj,data_ofdm)
