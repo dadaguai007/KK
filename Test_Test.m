@@ -1,7 +1,7 @@
 clear;close all;clc;
 addpath('Fncs\')
-% addpath('D:\PhD\Project\Base_Code\Base\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Project\Base_Code\Base\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath("Plot\")
 addpath('GUI\')
 
@@ -24,8 +24,8 @@ ref_seq_mat=repmat(qam_signal,1,k);
 % 信号复制
 signal=repmat(signal,k,1);
 % dither 的频率处理
-f1=400e3;
-f2=600e3;
+f1=40e3;
+f2=60e3;
 Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
@@ -194,6 +194,8 @@ for index=1:length(Eb_N0_dB)
     if 1
         disp('进入循环');
 
+        groupEffect='off';
+
         % 更新PD输入
         pd_input=pd_receiver;
         for jj=1:20
@@ -207,8 +209,7 @@ for index=1:length(Eb_N0_dB)
             for Idx=1:k
                 % 序列号
                 Receiver.Nr.squ_num=Idx;
-                % k设置为1
-%                 Receiver.Nr.k=1;
+
                 selectedPortion1=Receiver.selectSignal(k,DataGroup1);
                 % KK
                 [selectSignal1,~]=Receiver.Preprocessed_signal(selectedPortion1);
@@ -217,6 +218,7 @@ for index=1:length(Eb_N0_dB)
             end
             % 赋值
             re_signal=re_signal1;
+
             % BER 计算
             [ber_total1(jj),num_total1]=Receiver.Cal_BER(re_signal);
             % 更新PD输入
@@ -226,7 +228,7 @@ for index=1:length(Eb_N0_dB)
         [ber_total_iter(index),inn]=min(ber_total1);
 
         % 进行拍频的迭代
-
+        disp('进入第二循环');
 
         % 更新PD输入
         pd_input=martixI(inn,:);
@@ -236,28 +238,59 @@ for index=1:length(Eb_N0_dB)
             recoverI=iteraElimate_beat(re_signal,pd_input,fs,alpha,real(mean(re_signal)),Vdither(1));
             % 对信号进行切分，并提出全部信号
             [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
-            % 分组kk
-            re_signal1=[];
-            for Idx=1:k
-                % 序列号
-                Receiver.Nr.squ_num=Idx;
-                % k设置为1
-%                 Receiver.Nr.k=1;
-                selectedPortion1=Receiver.selectSignal(k,DataGroup1);
-                % KK
-                [selectSignal1,~]=Receiver.Preprocessed_signal(selectedPortion1);
-                % 存储kk
-                re_signal1=[re_signal1,selectSignal1];
+
+            if strcmp(groupEffect,'on')
+                % 分组解码
+                re_signal1=[];
+                for Idx=1:k
+                    % 序列号
+                    Receiver.Nr.squ_num=Idx;
+                    % k设置为1
+                    Receiver.Nr.k=1;
+                    selectedPortion1=Receiver.selectSignal(k,DataGroup1);
+                    % KK
+                    [selectSignal1,~]=Receiver.Preprocessed_signal(selectedPortion1);
+                    % BER 计算
+                    [ber1(Idx),num1(Idx),l1(Idx)]=Receiver.Cal_BER(selectSignal1);
+                    % 存储kk
+                    re_signal1=[re_signal1,selectSignal1];
+                end
+                % 赋值
+                re_signal=re_signal1;
+                fprintf('分组解码的BER = %1.7f\n',sum(num1)/sum(l1));
+                ber_group(jj)=sum(num1)/sum(l1);
+                % 重新赋值 k
+                Receiver.Nr.k=20;
+                % BER 计算
+                [ber_total2(jj),num_total1]=Receiver.Cal_BER(re_signal);
+                % 更新PD输入
+                pd_input=recoverI;
+            else
+                % 分组kk,直接解码
+                re_signal1=[];
+                for Idx=1:k
+                    % 序列号
+                    Receiver.Nr.squ_num=Idx;
+
+                    selectedPortion1=Receiver.selectSignal(k,DataGroup1);
+                    % KK
+                    [selectSignal1,~]=Receiver.Preprocessed_signal(selectedPortion1);
+                    % 存储kk
+                    re_signal1=[re_signal1,selectSignal1];
+                end
+                % 赋值
+                re_signal=re_signal1;
+                % BER 计算
+                [ber_total2(jj),num_total1]=Receiver.Cal_BER(re_signal);
+                % 更新PD输入
+                pd_input=recoverI;
             end
-            % 赋值
-            re_signal=re_signal1;
-            % BER 计算
-            [ber_total2(jj),num_total1]=Receiver.Cal_BER(re_signal);
-            % 更新PD输入
-            pd_input=recoverI;
-           
+
         end
         ber_total_iter2(index)=min(ber_total2);
+        if strcmp(groupEffect,'on')
+            ber_group_iter2(index)=min(ber_group);
+        end
 
     end
     WB.updata(index);
@@ -276,6 +309,6 @@ berplot.flagThreshold=1;
 berplot.flagRedraw=0;
 berplot.flagAddLegend=1;
 % BER=[ber_total.';ber_total_iter;ber_total_iter_Group];
-BER=[ber_total.';ber_group_total1;ber_total_iter2];
+BER=[ber_total.';ber_group_total1;ber_total_iter2;];
 LengendArrary=["80km w/o ","80km w/o Group",'80km w SIC'];
 berplot.multiplot(Eb_N0_dB,BER,LengendArrary);
