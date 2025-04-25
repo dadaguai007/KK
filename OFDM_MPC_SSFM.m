@@ -152,13 +152,16 @@ if 1
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
+        'KK',...           % 接收方式
+        'on');             % 是否全部接收
+
+      % 对信号进行切分，并提出全部信号
+    [DataGroup,totalPortion]=Receiver.Synchronization(pd_receiver);
 
     % 信号预处理
-    [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(ipd_btb);
+    [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
     % 归一化
     ReceivedSignal=pnorm(ReceivedSignal);
-    Dc=mean(ReceivedSignal);
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -167,68 +170,25 @@ end
 
 
 
-WB = OCG_WaitBar(k);
-% 发射机参数
-ofdmPHY=nn;
-for i=1:k
-
-    %%---------------------------------------        解码       ---------------------------%%
-    Receiver=OFDMreceiver( ...
-        ofdmPHY, ...       %%% 发射机传输的参数
-        ofdmPHY.Fs, ...    %   采样
-        6*ofdmPHY.Fs, ...  % 上采样
-        ofdmPHY.nPkts, ...            % 信道训练长度
-        1:1:ofdmPHY.nModCarriers, ...    %导频位置
-        i, ...             % 选取第一段信号
-        ref_seq, ...       % 参考序列
-        qam_signal, ...    % qam 矩阵
-        'off', ...         % 是否采用CPE
-        'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
-
-
-    % 信号预处理
-    [receive,Dc]=Receiver.Preprocessed_signal(ipd_btb);
-    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
+% 分组kk
+re_signal=[];
+for Idx=1:k
+    % 序列号
+    Receiver.Nr.squ_num=Idx;
+    % k设置为1
+    Receiver.Nr.k=1;
+    selectedPortion=Receiver.selectSignal(k,DataGroup);
+    % KK
+    [selectSignal,dc]=Receiver.Preprocessed_signal(selectedPortion);
     % BER 计算
-    [ber,num]=Receiver.Cal_BER(receive);
-    WB.updata(i);
+    [ber(Idx),num(Idx),l(Idx)]=Receiver.Cal_BER(selectSignal);
+    % 存储kk
+    re_signal=[re_signal,selectSignal];
 end
-WB.closeWaitBar();% 分段解码
 
+fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
+ber_group_total1=sum(num)/sum(l);
 
-% 选取性能较好段，进行重新调制
-[ofdm_signal,~] = nn.ofdm(data_ofdm_martix);
-% 补上直流
-Re_Signal=Dc+ofdm_signal;
-% 信号复制
-signal_Re=repmat(Re_Signal,k,1);
-% 残留噪声
-Re=ReceivedSignal-signal_Re.';
-% 更正解码参数
-Receiver.Total_Preprocessed_signal(ipd_btb);
-% 解码(接收信号减去残留噪声)
-[ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal-Re);
-
-% 噪声功率谱
-
-[ IfdBm, Fre ]=mon_ESA_flag(Re,fs,0);
-figure;
-plot(Fre,IfdBm,'b');
-FontSize=14;
-flag=struct();
-flag.LegendON_OFF=0;
-xticks([-32,-20,-10,0,10,20,32]);
-Plotter('Residual noise spectrum','Frequency (GHz)','Magnitude (dB)',[-fs/2/1e9 fs/2/1e9],...
-    [-150 50],'',flag,FontSize);
 
 % 创建时间轴
 [~,t_up]=freq_time_set(length(signal),fs);
-
-figure;
-plot(t_up,real(ReceivedSignal-Re),'b')
-flag=struct();
-flag.LegendON_OFF=0;
-xticks([0,1e-5,2e-5,3e-5,3.5e-5]);
-Plotter('Recovered signal','Time','Amplitude',[0 3.5e-5],[-1.5 1.5],...
-    '',flag,FontSize);

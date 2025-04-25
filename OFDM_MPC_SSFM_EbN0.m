@@ -150,8 +150,8 @@ if 1
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
-
+        'KK',...            % 接收方式
+            'on');             % 是否全部接收
     % 初始化设置
     Eb_N0_dB=15;
     ber_total=zeros(length(Eb_N0_dB),1);
@@ -164,8 +164,12 @@ if 1
         % 加入噪声
         pd_receiver = pnorm(ipd_btb)+noise;
 
+        % 对信号进行切分，并提出全部信号
+        [DataGroup,totalPortion]=Receiver.Synchronization(pd_receiver);
+
         % 信号预处理
-        [ReceivedSignal,~]=Receiver.Total_Preprocessed_signal(pd_receiver);
+        [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
+        Dc=mean(ReceivedSignal);
         % BER 计算
         [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -175,39 +179,6 @@ if 1
 
 
 end
-
-WB = OCG_WaitBar(k);
-
-% 发射机参数
-ofdmPHY=nn;
-for i=1:k
-
-    %%---------------------------------------        解码       ---------------------------%%
-    Receiver=OFDMreceiver( ...
-        ofdmPHY, ...       %%% 发射机传输的参数
-        ofdmPHY.Fs, ...    %   采样
-        6*ofdmPHY.Fs, ...  % 上采样
-        ofdmPHY.nPkts, ...            % 信道训练长度
-        1:1:ofdmPHY.nModCarriers, ...    %导频位置
-        i, ...             % 选取第一段信号
-        ref_seq, ...       % 参考序列
-        qam_signal, ...    % qam 矩阵
-        'off', ...         % 是否采用CPE
-        'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
-
-    % 削波
-    Receiver.Button.Clipping='on';
-    Receiver.Nr.CL=0.3;
-    % 信号预处理
-    [receive,Dc]=Receiver.Preprocessed_signal(pd_receiver);
-    receive=pnorm(receive);
-    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(receive);
-    % BER 计算
-    [ber,num]=Receiver.Cal_BER(receive);
-    WB.updata(i);
-end
-WB.closeWaitBar();% 分段解码
 
 
 

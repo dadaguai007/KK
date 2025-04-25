@@ -213,7 +213,8 @@ if 1
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');
+        'KK',....
+        'on');             % 是否全部接收
 
     % 初始化设置
     Eb_N0_dB=10:30;
@@ -231,8 +232,12 @@ if 1
             noise=EbN0_dB(data,Eb_N0_dB(index));
             % 加入噪声
             pd_receiver=data+noise;
+
+            % 对信号进行切分，并提出全部信号
+            [DataGroup1,totalPortion]=Receiver.Synchronization(pd_receiver);
+
             % 信号预处理
-            [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(pd_receiver);
+            [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
 
             % BER 计算
             [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);

@@ -156,10 +156,15 @@ for index= 1:length(flag_mon)
         ref_seq_mat, ...    % qam 矩阵
         'off', ...         % 是否采用CPE
         'off', ...         % 对所有载波进行相位补偿
-        'KK');             % 接收方式
+        'KK' ,...                         % 接收方式
+        'on');             % 是否全部接收
+
+        % 对信号进行切分，并提出全部信号
+    [DataGroup,totalPortion]=Receiver.Synchronization(ipd_btb);
 
     % 信号预处理
-    [ReceivedSignal,Dc]=Receiver.Total_Preprocessed_signal(ipd_btb);
+    [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
+  
     ReceivedSignal=pnorm(ReceivedSignal);
     % BER 计算
     [ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
@@ -168,7 +173,12 @@ for index= 1:length(flag_mon)
 
 
     % 无串扰信号预处理
-    [ReceivedSignal_Pure,Dc1]=Receiver.Total_Preprocessed_signal(ipd_btb_Pure);
+        % 对信号进行切分，并提出全部信号
+    [DataGroup1,totalPortion1]=Receiver.Synchronization(ipd_btb_Pure);
+
+    % 信号预处理
+    [ReceivedSignal_Pure,dc1]=Receiver.Preprocessed_signal(totalPortion1);
+
     ReceivedSignal_Pure=pnorm(ReceivedSignal_Pure);
     % BER 计算
     [ber_total1,num_total1]=Receiver.Cal_BER(ReceivedSignal_Pure);
