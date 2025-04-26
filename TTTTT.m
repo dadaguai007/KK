@@ -119,6 +119,15 @@ param.NF = 4.5;
 param.amp='ideal';
 param.Fs=fs;
 
+
+% CD compensation
+paramEDC = struct();
+paramEDC.L = param.Ltotal;
+paramEDC.D = param.D;
+paramEDC.Fc = 193.1e12;
+paramEDC.Fs = fs;
+
+
 % OFDM_tran
 sigRxo=ssfm(sigTxo,param);
 power2=signalpower(sigRxo);
@@ -140,7 +149,7 @@ Receiver=OFDMreceiver( ...
     ofdmPHY, ...       %%% 发射机传输的参数
     ofdmPHY.Fs, ...    %   采样
     6*ofdmPHY.Fs, ...  % 上采样
-    2000, ...            % 信道训练长度
+    500, ...            % 信道训练长度
     1:1:ofdmPHY.nModCarriers, ...    %导频位置
     1, ...             % 选取第一段信号
     ref_seq, ...       % 参考序列
@@ -194,9 +203,12 @@ for index=1:length(Eb_N0_dB)
     fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
     ber_group_total1(index)=sum(num)/sum(l);
 
+    % CD 补偿
+%     re_signal = cdc(re_signal, paramEDC);
+%     re_signal=re_signal.';
     pd_input=pd_receiver;
     % 算法迭代
-    alpha=0.2;
+    alpha=0.02;
     for j=1:30
         [recoverI,error]=iteraElimate(re_signal,pd_input,fs,alpha,Dc,Vdither(1));
         % 对信号进行切分，并提出全部信号
@@ -212,9 +224,10 @@ for index=1:length(Eb_N0_dB)
             % 存储kk
             re_signal1=[re_signal1,selectSignal];
         end
+        ReceivedSignal=re_signal1;
         % 信号预处理
 %         [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
-        ReceivedSignal=re_signal1;
+
         Receiver.Nr.k=k;
         % BER 计算
         Receiver.Nr.nTrainSym=2000;
@@ -222,6 +235,9 @@ for index=1:length(Eb_N0_dB)
         [berSIC(j),num_total(j)]=Receiver.Cal_BER(ReceivedSignal);
         pd_input=recoverI;
         re_signal=ReceivedSignal;
+         %CD 补偿
+%         re_signal = cdc(re_signal, paramEDC);
+%         re_signal=re_signal.';
     end
     ber_total1(index)=min(berSIC);
     WB.updata(index);
