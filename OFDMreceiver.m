@@ -31,6 +31,7 @@ classdef OFDMreceiver < handle
             end
             obj.Nr.k=1;% 默认为1 ，不变， 选取全部信号时，在函数中更改
             obj.Button.Clipping='off';% 默认为不削波
+            obj.Button.Display='on'; % 默认打开显示
         end
 
 
@@ -131,7 +132,9 @@ classdef OFDMreceiver < handle
             ref_seq=ref_seq(:);
             % 计算误码率
             [ber,num,~] = CalcBER(qam_bit,ref_seq);
-            fprintf('Num of Errors = %d, BER = %1.7f\n',num,ber);
+            if strcmp( obj.Button.Display,'on')
+                fprintf('Num of Errors = %d, BER = %1.7f\n',num,ber);
+            end
         end
 
         % 输入QAM信号进行解码
