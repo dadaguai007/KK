@@ -197,6 +197,8 @@ classdef OFDMreceiver < handle
 
         end
         
+
+
         % 重新生成满足条件的复数信号，  不是平方接收的实数信号
         function ofdm_signal=Remodulation(obj,ReceivedSignal,Dc)
             % 解调获得 信号  和 信道响应

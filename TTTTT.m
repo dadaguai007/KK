@@ -2,8 +2,8 @@
 
 clear;close all;clc;
 addpath('Fncs\')
-% addpath('D:\PhD\Project\Base_Code\Base\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Project\Base_Code\Base\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath("Plot\")
 addpath('GUI\')
 
@@ -26,8 +26,8 @@ ref_seq_mat=repmat(qam_signal,1,k);
 % 信号复制
 signal=repmat(signal,k,1);
 % dither 的频率处理
-f1=40e3;
-f2=60e3;
+f1=400e3;
+f2=600e3;
 Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
@@ -97,7 +97,7 @@ m=Modulation_index(Amp*signal.',paramIQ.Vpi,'ofdm');
 fprintf('Modulation index=%3.3f\n',m);
 % 调制
 sigTxo = iqm(Ai, Amp*signal, paramIQ);
-
+Dc=mean(pnorm(sigTxo));
 signal_power=signalpower(sigTxo);
 fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
 
@@ -160,8 +160,8 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-% Eb_N0_dB=15:30;
-Eb_N0_dB=30;
+Eb_N0_dB=15:30;
+% Eb_N0_dB=30;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -178,19 +178,19 @@ for index=1:length(Eb_N0_dB)
 
     % 信号预处理
     [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
-    Dc=mean(ReceivedSignal);
+
     % BER 计算
     [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
     % 分组kk
     re_signal=[];
-     Receiver.Button.Display='off';
+    Receiver.Button.Display='off';
     for Idx=1:k
         % 序列号
         Receiver.Nr.squ_num=Idx;
         % k设置为1
         Receiver.Nr.k=1;
-         Receiver.Nr.nTrainSym=100;
+        Receiver.Nr.nTrainSym=100;
         selectedPortion=Receiver.selectSignal(k,DataGroup);
         % KK
         [selectSignal,dc]=Receiver.Preprocessed_signal(selectedPortion);
@@ -203,17 +203,42 @@ for index=1:length(Eb_N0_dB)
     fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
     ber_group_total1(index)=sum(num)/sum(l);
 
+
+    Receiver.Nr.k=k;
+    % BER 计算
+    Receiver.Nr.nTrainSym=100;
     % CD 补偿
-%     re_signal = cdc(re_signal, paramEDC);
-%     re_signal=re_signal.';
+    re_signal=cdc(re_signal,paramEDC);
+    re_signal=re_signal.';
+    Receiver.Button.Display='on';
+
+    [~,~,~,data_qam,~]=Receiver.Demodulation(re_signal);
+    % 转换为矩阵形式
+    data_mat=reshape(data_qam,nn.nModCarriers,[]);
+
+    % 重新提调制为ofdm
+    re_mod_signal=[];
+    for idx=1:k
+        martix=data_mat(:,nn.nPkts*(idx-1)+1:idx*nn.nPkts);
+        % 重新调制为ofdm
+        ofdm_signal= nn.ofdm(martix);
+        re_mod_signal=[re_mod_signal,ofdm_signal.'];
+    end
+    % 色散逆补偿
+    paramEDC.D = -param.D;
+    re_mod_signal=cdc(re_mod_signal,paramEDC);
+    re_mod_signal=re_mod_signal.';
+
     pd_input=pd_receiver;
     % 算法迭代
-    alpha=0.02;
-    for j=1:30
-        [recoverI,error]=iteraElimate(re_signal,pd_input,fs,alpha,Dc,Vdither(1));
+    alpha=0.03;
+    for j=1:20
+        [recoverI,error]=iteraElimate(re_mod_signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
+
+
         % 对信号进行切分，并提出全部信号
         [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
-       
+
         re_signal1=[];
         for Idx=1:k
             % 序列号
@@ -226,18 +251,16 @@ for index=1:length(Eb_N0_dB)
         end
         ReceivedSignal=re_signal1;
         % 信号预处理
-%         [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
+        % [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
 
         Receiver.Nr.k=k;
         % BER 计算
-        Receiver.Nr.nTrainSym=2000;
+        Receiver.Nr.nTrainSym=500;
         Receiver.Button.Display='on';
         [berSIC(j),num_total(j)]=Receiver.Cal_BER(ReceivedSignal);
         pd_input=recoverI;
-        re_signal=ReceivedSignal;
-         %CD 补偿
-%         re_signal = cdc(re_signal, paramEDC);
-%         re_signal=re_signal.';
+        %         re_signal=ReceivedSignal;
+
     end
     ber_total1(index)=min(berSIC);
     WB.updata(index);

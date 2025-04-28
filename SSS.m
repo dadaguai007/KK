@@ -1,8 +1,8 @@
-% 将光纤去除，直接接收，测试算法性能
+% 将光纤去除，直接接收，测试算法性能(使用label信号进行性能测试)
 clear;close all;clc;
 addpath('Fncs\')
-% addpath('D:\PhD\Project\Base_Code\Base\')
-addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
+addpath('D:\PhD\Project\Base_Code\Base\')
+% addpath('D:\BIT_PhD\Base_Code\Codebase_using\')
 addpath("Plot\")
 addpath('GUI\')
 
@@ -96,7 +96,7 @@ m=Modulation_index(Amp*signal.',paramIQ.Vpi,'ofdm');
 fprintf('Modulation index=%3.3f\n',m);
 % 调制
 sigTxo = iqm(Ai, Amp*signal, paramIQ);
-
+Dc=mean(pnorm(sigTxo));
 signal_power=signalpower(sigTxo);
 fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
 
@@ -120,7 +120,7 @@ Receiver=OFDMreceiver( ...
     ofdmPHY, ...       %%% 发射机传输的参数
     ofdmPHY.Fs, ...    %   采样
     6*ofdmPHY.Fs, ...  % 上采样
-    500, ...            % 信道训练长度
+    100, ...            % 信道训练长度
     1:1:ofdmPHY.nModCarriers, ...    %导频位置
     1, ...             % 选取第一段信号
     ref_seq, ...       % 参考序列
@@ -131,8 +131,8 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-% Eb_N0_dB=15:30;
-Eb_N0_dB=30;
+Eb_N0_dB=15:30;
+% Eb_N0_dB=24;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -149,7 +149,8 @@ for index=1:length(Eb_N0_dB)
 
     % 信号预处理
     [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
-    Dc=mean(ReceivedSignal);
+%     Dc=mean(ReceivedSignal);
+    Receiver.Button.Display='on';
     % BER 计算
     [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
@@ -177,29 +178,30 @@ for index=1:length(Eb_N0_dB)
     pd_input=pd_receiver;
     % 算法迭代
     alpha=0.02;
+
     for j=1:30
-        [recoverI,error]=iteraElimate(re_signal,pd_input,fs,alpha,Dc,Vdither(1));
+        [recoverI,error]=iteraElimate(signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
         % 对信号进行切分，并提出全部信号
         [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
        
-%         re_signal1=[];
-%         for Idx=1:k
-%             % 序列号
-%             Receiver.Nr.squ_num=Idx;
-%             selectedPortion=Receiver.selectSignal(k,DataGroup1);
-%             % KK
-%             [selectSignal,~]=Receiver.Preprocessed_signal(selectedPortion);
-%             % 存储kk
-%             re_signal1=[re_signal1,selectSignal];
-%         end
-%         ReceivedSignal=re_signal1;
+        re_signal1=[];
+        for Idx=1:k
+            % 序列号
+            Receiver.Nr.squ_num=Idx;
+            selectedPortion=Receiver.selectSignal(k,DataGroup1);
+            % KK
+            [selectSignal,~]=Receiver.Preprocessed_signal(selectedPortion);
+            % 存储kk
+            re_signal1=[re_signal1,selectSignal];
+        end
+        ReceivedSignal=re_signal1;
         % 信号预处理
 
-        [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
+%         [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
 
         Receiver.Nr.k=k;
         % BER 计算
-        Receiver.Nr.nTrainSym=500;
+        Receiver.Nr.nTrainSym=100;
         Receiver.Button.Display='on';
         [berSIC(j),num_total(j)]=Receiver.Cal_BER(ReceivedSignal);
         pd_input=recoverI;
@@ -223,5 +225,5 @@ berplot.flagRedraw=0;
 berplot.flagAddLegend=1;
 % BER=[ber_total.';ber_total_iter;ber_total_iter_Group];
 BER=[ber_total.';ber_group_total1;ber_total1;];
-LengendArrary=["80km w/o ","80km w/o Group",'80km w SIC'];
+LengendArrary=["btb Total ","btb Group",'btb w SIC'];
 berplot.multiplot(Eb_N0_dB,BER,LengendArrary);

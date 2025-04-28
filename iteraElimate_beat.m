@@ -1,7 +1,7 @@
 function recoverI=iteraElimate_beat(E,ipd_pd,fs,alpha,Dc,Vdither)
 
-f1=400e3;
-f2=600e3;
+f1=40e3;
+f2=60e3;
 N=length(E)/(fs/f1);
 
 % 创建dither信号
@@ -26,10 +26,14 @@ I_beat=real(E_removedc).*VbI_cos-imag(E_removedc).*VbI_sin;
 Q_beat=real(E_removedc).*VbQ_sin+imag(E_removedc).*VbQ_cos;
 
 E2=I_beat+Q_beat;
+% 正频率
+I_beat1=real(E_removedc).*VbI_cos+imag(E_removedc).*VbI_sin;
+Q_beat1=-real(E_removedc).*VbQ_sin+imag(E_removedc).*VbQ_cos;
 
+E3=I_beat1+Q_beat1;
 % 消除不需要的频率分量
-ipd_error=alpha*(E2);
-
+% ipd_error=alpha*(E2);
+ipd_error=alpha*(E2+E3);
 recoverI=ipd_pd-ipd_error;
 
 
