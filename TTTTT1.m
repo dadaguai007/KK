@@ -1,4 +1,5 @@
-% 将光纤去除，直接接收，测试算法性能(使用label信号进行性能测试)
+% 光纤传输系统的迭代算法
+
 clear;close all;clc;
 addpath('Fncs\')
 addpath('D:\PhD\Project\Base_Code\Base\')
@@ -6,6 +7,17 @@ addpath('D:\PhD\Project\Base_Code\Base\')
 addpath("Plot\")
 addpath('GUI\')
 
+% 文件存储路径
+datapath='Output\SSFM_80km_SIC_Remod_40k';
+
+% 装载数据保存模块
+ds=DataSaver([], datapath,[]);
+ds.createFolder();
+
+% 数据存储标志
+saveButton='off';
+
+% 信号生成
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -104,6 +116,34 @@ fprintf('optical signal power: %.2f dBm\n', 10 * log10(signal_power / 1e-3));
 Vpi=paramIQ.Vpi;
 Cal_CSPR(sigTxo,Ai,Vpi,phi);
 
+% 光纤传输
+% fiber param
+param=struct();
+param.Ltotal = 80; %km
+param.Lspan =10;
+param.hz= 0.5;
+param.alpha=0.2;
+param.D = 16;
+param.gamma = 1.3;
+param.Fc = 193.1e12;
+param.NF = 4.5;
+param.amp='ideal';
+param.Fs=fs;
+
+
+% CD compensation
+paramEDC = struct();
+paramEDC.L = param.Ltotal;
+paramEDC.D = param.D;
+paramEDC.Fc = 193.1e12;
+paramEDC.Fs = fs;
+
+
+% OFDM_tran
+sigRxo=ssfm(sigTxo,param);
+power2=signalpower(sigRxo);
+fprintf('after ssfm signal power: %.2f dBm\n', 10 * log10(power2 / 1e-3));
+
 
 %PD
 paramPD.B =nn.Fs;
@@ -111,7 +151,7 @@ paramPD.R =1;
 paramPD.type = 'ideal';
 paramPD.Fs=nn.Fs;
 %pd
-ipd_btb = pd(sigTxo, paramPD);
+ipd_btb = pd(sigRxo, paramPD);
 
 % 发射机参数
 ofdmPHY=nn;
@@ -120,7 +160,7 @@ Receiver=OFDMreceiver( ...
     ofdmPHY, ...       %%% 发射机传输的参数
     ofdmPHY.Fs, ...    %   采样
     6*ofdmPHY.Fs, ...  % 上采样
-    100, ...            % 信道训练长度
+    500, ...            % 信道训练长度
     1:1:ofdmPHY.nModCarriers, ...    %导频位置
     1, ...             % 选取第一段信号
     ref_seq, ...       % 参考序列
@@ -131,15 +171,15 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-Eb_N0_dB=15:30;
-% Eb_N0_dB=20;
+% Eb_N0_dB=15:30;
+Eb_N0_dB=30;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));
 for index=1:length(Eb_N0_dB)
     fprintf('噪声为 %d dB\n',Eb_N0_dB(index))
     % 噪声
-    noise=EbN0_dB(sigTxo,Eb_N0_dB(index));
+    noise=EbN0_dB(sigRxo,Eb_N0_dB(index));
 
     % 加入噪声
     pd_receiver = real(pnorm(ipd_btb)+noise);
@@ -149,20 +189,19 @@ for index=1:length(Eb_N0_dB)
 
     % 信号预处理
     [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
-%     Dc=mean(ReceivedSignal);
-    Receiver.Button.Display='on';
+
     % BER 计算
     [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
 
     % 分组kk
     re_signal=[];
-     Receiver.Button.Display='off';
+    Receiver.Button.Display='off';
     for Idx=1:k
         % 序列号
         Receiver.Nr.squ_num=Idx;
         % k设置为1
         Receiver.Nr.k=1;
-         Receiver.Nr.nTrainSym=50;
+        Receiver.Nr.nTrainSym=100;
         selectedPortion=Receiver.selectSignal(k,DataGroup);
         % KK
         [selectSignal,dc]=Receiver.Preprocessed_signal(selectedPortion);
@@ -175,15 +214,43 @@ for index=1:length(Eb_N0_dB)
     fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
     ber_group_total1(index)=sum(num)/sum(l);
 
+
+    Receiver.Nr.k=k;
+    % BER 计算
+    Receiver.Nr.nTrainSym=100;
+    % CD 补偿
+    re_signal=cdc(re_signal,paramEDC);
+    re_signal=re_signal.';
+    Receiver.Button.Display='on';
+
+    [~,~,~,data_qam,~]=Receiver.Demodulation(re_signal);
+    % 转换为矩阵形式
+    data_mat=reshape(data_qam,nn.nModCarriers,[]);
+
+    % 重新提调制为ofdm
+    re_mod_signal=[];
+    for idx=1:k
+        martix=data_mat(:,nn.nPkts*(idx-1)+1:idx*nn.nPkts);
+        % 重新调制为ofdm
+        ofdm_signal= nn.ofdm(martix);
+        re_mod_signal=[re_mod_signal,ofdm_signal.'];
+    end
+    % 色散逆补偿
+    paramEDC.D = -param.D;
+    re_mod_signal=cdc(re_mod_signal,paramEDC);
+    re_mod_signal=re_mod_signal.';
+
     pd_input=pd_receiver;
     % 算法迭代
-    alpha=0.02;
+    alpha=0.025;
+%     alpha= 0.3956; % 最佳alpha值 或者0.3628
+    for j=1:20
+        [recoverI,error]=iteraElimate(re_mod_signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
 
-    for j=1:30
-        [recoverI,error]=iteraElimate(signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
+
         % 对信号进行切分，并提出全部信号
         [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
-       
+
         re_signal1=[];
         for Idx=1:k
             % 序列号
@@ -196,22 +263,78 @@ for index=1:length(Eb_N0_dB)
         end
         ReceivedSignal=re_signal1;
         % 信号预处理
+        % [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
 
-%         [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
 
+        % 均衡参数
         Receiver.Nr.k=k;
+        Receiver.Nr.nTrainSym=1000;
+        % CD 补偿
+         paramEDC.D = param.D;
+        re_signal1=cdc(re_signal1,paramEDC);
+        re_signal1=re_signal1.';
+        [~,~,~,data_qam1,~]=Receiver.Demodulation(re_signal1);
+        % 转换为矩阵形式
+        data_mat1=reshape(data_qam1,nn.nModCarriers,[]);
+
+        % 重新提调制为ofdm
+        re_mod_signal=[];
+        for idx=1:k
+            martix1=data_mat1(:,nn.nPkts*(idx-1)+1:idx*nn.nPkts);
+            % 重新调制为ofdm
+            ofdm_signal1= nn.ofdm(martix1);
+            re_mod_signal=[re_mod_signal,ofdm_signal1.'];
+        end
+        % 色散逆补偿
+        paramEDC.D = -param.D;
+        re_mod_signal=cdc(re_mod_signal,paramEDC);
+        re_mod_signal=re_mod_signal.';
+
+
         % BER 计算
-        Receiver.Nr.nTrainSym=100;
+        Receiver.Nr.k=k;
+        Receiver.Nr.nTrainSym=1000;
         Receiver.Button.Display='on';
         [berSIC(j),num_total(j)]=Receiver.Cal_BER(ReceivedSignal);
+        % 重新更新光电流
         pd_input=recoverI;
-        re_signal=ReceivedSignal;
+
     end
     ber_total1(index)=min(berSIC);
     WB.updata(index);
 
 end
 WB.closeWaitBar();
+
+
+% 数据存储 
+if strcmp(saveButton,'on')
+
+    
+    name='berSICremod';
+
+    ds.name=name;
+    ds.data=ber_total1;
+    ds.saveToMat();
+
+
+    % 数据存储
+    name='berGroup';
+
+    ds.name=name;
+    ds.data=ber_group_total1;
+    ds.saveToMat();
+
+
+    % 数据存储
+    name='berTotal';
+
+    ds.name=name;
+    ds.data=ber_total;
+    ds.saveToMat();
+
+
+end
 
 
 
@@ -225,5 +348,5 @@ berplot.flagRedraw=0;
 berplot.flagAddLegend=1;
 % BER=[ber_total.';ber_total_iter;ber_total_iter_Group];
 BER=[ber_total.';ber_group_total1;ber_total1;];
-LengendArrary=["btb Total ","btb Group",'btb w SIC'];
+LengendArrary=["80km w/o ","80km w/o Group",'80km w SIC'];
 berplot.multiplot(Eb_N0_dB,BER,LengendArrary);

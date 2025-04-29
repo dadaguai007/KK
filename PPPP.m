@@ -1,4 +1,5 @@
-% 将光纤去除，直接接收，测试算法性能(使用label信号进行性能测试)
+% 找到最佳的alpha
+
 clear;close all;clc;
 addpath('Fncs\')
 addpath('D:\PhD\Project\Base_Code\Base\')
@@ -112,6 +113,42 @@ paramPD.type = 'ideal';
 paramPD.Fs=nn.Fs;
 %pd
 ipd_btb = pd(sigTxo, paramPD);
+% 归一化
+ipd_btb=pnorm(ipd_btb);
+
+
+
+% 无dither信号
+paramIQ.Vpi=9;
+if strcmp(type,'dsb')
+    paramIQ.VbI=-phi*paramIQ.Vpi;
+    paramIQ.VbQ=-phi*paramIQ.Vpi;
+elseif strcmp(type,'ssb')
+    paramIQ.VbI=-phi*paramIQ.Vpi;
+    paramIQ.VbQ=-phi*paramIQ.Vpi;
+end
+paramIQ.Vphi=paramIQ.Vpi/2;
+Amp=1.7; % 信号放大
+Ai  = sqrt(Pi);% 输入光功率
+% 调制
+sigTxo1 = iqm(Ai, Amp*signal, paramIQ);
+
+S=pd((sigTxo1),paramPD);
+S=pnorm(S);
+
+% 光电流差值
+Error=ipd_btb-S;
+
+figure;hold on;
+plot(S)
+plot(ipd_btb)
+plot(Error)
+
+
+% 误差绘图
+figure
+plot(Error)
+
 
 % 发射机参数
 ofdmPHY=nn;
@@ -130,100 +167,79 @@ Receiver=OFDMreceiver( ...
     'KK', ...          % 接收方式
     'on');             % 是否全部接收
 
-% 初始化设置
-Eb_N0_dB=15:30;
-% Eb_N0_dB=20;
-ber_total=zeros(length(Eb_N0_dB),1);
-num_total=zeros(length(Eb_N0_dB),1);
-WB = OCG_WaitBar(length(Eb_N0_dB));
-for index=1:length(Eb_N0_dB)
-    fprintf('噪声为 %d dB\n',Eb_N0_dB(index))
-    % 噪声
-    noise=EbN0_dB(sigTxo,Eb_N0_dB(index));
 
-    % 加入噪声
-    pd_receiver = real(pnorm(ipd_btb)+noise);
 
-    % 对信号进行切分，并提出全部信号
-    [DataGroup,totalPortion]=Receiver.Synchronization(pd_receiver);
+pd_receiver = (ipd_btb);
 
-    % 信号预处理
-    [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
-%     Dc=mean(ReceivedSignal);
-    Receiver.Button.Display='on';
+% 对信号进行切分，并提出全部信号
+[DataGroup,totalPortion]=Receiver.Synchronization(pd_receiver);
+
+% 信号预处理
+[ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
+Receiver.Button.Display='on';
+% BER 计算
+[ber_total,num_total]=Receiver.Cal_BER(ReceivedSignal);
+
+% 分组kk
+re_signal=[];
+mat_signal=cell(1,k);
+Receiver.Button.Display='off';
+for Idx=1:k
+    % 序列号
+    Receiver.Nr.squ_num=Idx;
+    % k设置为1
+    Receiver.Nr.k=1;
+    Receiver.Nr.nTrainSym=50;
+    selectedPortion=Receiver.selectSignal(k,DataGroup);
+    % KK
+    [selectSignal,dc]=Receiver.Preprocessed_signal(selectedPortion);
+    % 解码运算
+    [signal_ofdm_martix,data_ofdm_martix,Hf,data_qam,qam_bit]=Receiver.Demodulation(selectedPortion);
+    % 转换为矩阵形式
+    data_mat=reshape(data_qam,nn.nModCarriers,[]);
     % BER 计算
-    [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
-
-    % 分组kk
-    re_signal=[];
-     Receiver.Button.Display='off';
-    for Idx=1:k
-        % 序列号
-        Receiver.Nr.squ_num=Idx;
-        % k设置为1
-        Receiver.Nr.k=1;
-         Receiver.Nr.nTrainSym=50;
-        selectedPortion=Receiver.selectSignal(k,DataGroup);
-        % KK
-        [selectSignal,dc]=Receiver.Preprocessed_signal(selectedPortion);
-        % BER 计算
-        [ber(Idx),num(Idx),l(Idx)]=Receiver.Cal_BER(selectSignal);
-        % 存储kk
-        re_signal=[re_signal,selectSignal];
-    end
-
-    fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
-    ber_group_total1(index)=sum(num)/sum(l);
-
-    pd_input=pd_receiver;
-    % 算法迭代
-    alpha=0.02;
-
-    for j=1:30
-        [recoverI,error]=iteraElimate(signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
-        % 对信号进行切分，并提出全部信号
-        [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
-       
-        re_signal1=[];
-        for Idx=1:k
-            % 序列号
-            Receiver.Nr.squ_num=Idx;
-            selectedPortion=Receiver.selectSignal(k,DataGroup1);
-            % KK
-            [selectSignal,~]=Receiver.Preprocessed_signal(selectedPortion);
-            % 存储kk
-            re_signal1=[re_signal1,selectSignal];
-        end
-        ReceivedSignal=re_signal1;
-        % 信号预处理
-
-%         [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
-
-        Receiver.Nr.k=k;
-        % BER 计算
-        Receiver.Nr.nTrainSym=100;
-        Receiver.Button.Display='on';
-        [berSIC(j),num_total(j)]=Receiver.Cal_BER(ReceivedSignal);
-        pd_input=recoverI;
-        re_signal=ReceivedSignal;
-    end
-    ber_total1(index)=min(berSIC);
-    WB.updata(index);
-
+    [ber(Idx),num(Idx),l(Idx)]=Receiver.Cal_BER(selectSignal);
+    % 存储kk
+    re_signal=[re_signal,selectSignal];
+    mat_signal{Idx}=data_mat;
 end
-WB.closeWaitBar();
+re_mod_signal=[];
+% 重新进行信号调制
+for ii=1:k
+    martix=mat_signal{ii};
+    % 重新调制为ofdm
+    ofdm_signal= nn.ofdm(martix);
+    re_mod_signal=[re_mod_signal,ofdm_signal.'];
+end
 
 
 
-berplot = BERPlot_David();
-% 间隔
-berplot.interval=3;
-% 字号
-berplot.Config.FontSize = 14;
-berplot.flagThreshold=1;
-berplot.flagRedraw=0;
-berplot.flagAddLegend=1;
-% BER=[ber_total.';ber_total_iter;ber_total_iter_Group];
-BER=[ber_total.';ber_group_total1;ber_total1;];
-LengendArrary=["btb Total ","btb Group",'btb w SIC'];
-berplot.multiplot(Eb_N0_dB,BER,LengendArrary);
+
+alpha=1;
+[ipd_error1]=iteraError((re_mod_signal),fs,alpha,Dc,Vdither(1),f1,f2);
+[ipd_error2]=iteraError((signal),fs,alpha,Dc,Vdither(1),f1,f2);
+
+
+figure;hold on;
+plot(ipd_error1)
+plot(ipd_error2)
+
+
+% 误差归一化
+Error_norm=pnorm(Error);
+ipd_error_norm=pnorm(ipd_error1);
+
+close all;
+figure;hold on;
+plot(ipd_error_norm)
+plot(Error_norm)
+legend('重建误差','理想误差')
+title('归一化后的误差显示')
+
+
+% 最小二乘法确定比例因子alpha
+
+I=Error.*ipd_error1;
+Q=ipd_error1.^2;
+
+alpha_k=sum(I)/sum(Q)

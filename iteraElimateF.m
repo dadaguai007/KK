@@ -1,7 +1,7 @@
-function [recoverI,ipd_error]=iteraElimate(E,ipd_pd,fs,alpha,Dc,Vdither)
+function [recoverI,ipd_error]=iteraElimateF(E,ipd_pd,fs,alpha,Dc,Vdither,f1,f2)
 
-f1=40e3;
-f2=60e3;
+% f1=40e3;
+% f2=60e3;
 N=length(E)/(fs/f1);
 
 % 创建dither信号

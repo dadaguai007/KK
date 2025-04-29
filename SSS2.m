@@ -6,6 +6,18 @@ addpath('D:\PhD\Project\Base_Code\Base\')
 addpath("Plot\")
 addpath('GUI\')
 
+
+% 文件存储路径
+datapath='Output\BTB_SIC_Remod_40k';
+
+% 装载数据保存模块
+ds=DataSaver([], datapath,[]);
+ds.createFolder();
+
+% 数据存储标志
+saveButton='off';
+
+% 信号生成
 OFDM_TX;
 % 生成信号
 [y1,y2,signal,qam_signal,postiveCarrierIndex]=nn.Output();
@@ -131,8 +143,8 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-Eb_N0_dB=15:30;
-% Eb_N0_dB=24;
+% Eb_N0_dB=15:30;
+Eb_N0_dB=24;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));
@@ -149,7 +161,7 @@ for index=1:length(Eb_N0_dB)
 
     % 信号预处理
     [ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion);
-%     Dc=mean(ReceivedSignal);
+    %     Dc=mean(ReceivedSignal);
     Receiver.Button.Display='on';
     % BER 计算
     [ber_total(index),num_total(index)]=Receiver.Cal_BER(ReceivedSignal);
@@ -177,7 +189,7 @@ for index=1:length(Eb_N0_dB)
         re_signal=[re_signal,selectSignal];
         mat_signal{Idx}=data_mat;
     end
-    
+
     fprintf('分组解码的BER = %1.7f\n',sum(num)/sum(l));
     ber_group_total1(index)=sum(num)/sum(l);
 
@@ -189,16 +201,16 @@ for index=1:length(Eb_N0_dB)
         ofdm_signal= nn.ofdm(martix);
         re_mod_signal=[re_mod_signal,ofdm_signal.'];
     end
- 
+
     pd_input=pd_receiver;
     % 算法迭代
-    alpha=0.02;
-
+%     alpha=0.02;
+% alpha= 0.3628;   % 最佳alpha
     for j=1:30
         [recoverI,error]=iteraElimate(re_mod_signal+Dc,pd_input,fs,alpha,Dc,Vdither(1));
         % 对信号进行切分，并提出全部信号
         [DataGroup1,totalPortion1]=Receiver.Synchronization(recoverI);
-       
+
 
         re_signal1=[];
         mat_signal_Idx=cell(1,k);
@@ -229,9 +241,9 @@ for index=1:length(Eb_N0_dB)
             ofdm_signal1= nn.ofdm(martix1);
             re_mod_signal=[re_mod_signal,ofdm_signal1.'];
         end
-        
-        
-        
+
+
+
         % 信号预处理
 
         %[ReceivedSignal,dc]=Receiver.Preprocessed_signal(totalPortion1);
@@ -251,6 +263,34 @@ end
 WB.closeWaitBar();
 
 
+
+% 数据存储
+
+% 数据存储
+if strcmp(saveButton,'on')
+    name='berSICremod';
+
+    ds.name=name;
+    ds.data=ber_total1;
+    ds.saveToMat();
+
+
+    % 数据存储
+    name=strcat('berGroup');
+
+    ds.name=name;
+    ds.data=ber_group_total1;
+    ds.saveToMat();
+
+
+    % 数据存储
+    name=strcat('berTotal');
+
+    ds.name=name;
+    ds.data=ber_total;
+    ds.saveToMat();
+
+end
 
 berplot = BERPlot_David();
 % 间隔

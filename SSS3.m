@@ -131,8 +131,8 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-Eb_N0_dB=15:30;
-% Eb_N0_dB=24;
+% Eb_N0_dB=15:30;
+Eb_N0_dB=24;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));

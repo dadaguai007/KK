@@ -26,8 +26,8 @@ ref_seq_mat=repmat(qam_signal,1,k);
 % 信号复制
 signal=repmat(signal,k,1);
 % dither 的频率处理
-f1=400e3;
-f2=600e3;
+f1=40e3;
+f2=60e3;
 Fs_new=nn.Fs;
 N=length(signal)/(Fs_new/f1);
 
@@ -160,8 +160,8 @@ Receiver=OFDMreceiver( ...
     'on');             % 是否全部接收
 
 % 初始化设置
-Eb_N0_dB=15:30;
-% Eb_N0_dB=30;
+% Eb_N0_dB=15:30;
+Eb_N0_dB=30;
 ber_total=zeros(length(Eb_N0_dB),1);
 num_total=zeros(length(Eb_N0_dB),1);
 WB = OCG_WaitBar(length(Eb_N0_dB));
